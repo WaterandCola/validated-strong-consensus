@@ -290,6 +290,7 @@ document.getElementById('fileInput').addEventListener('change', handleFileUpload
             d3.select('#graph').html('');
             if (intervalId) {
                 clearInterval(intervalId);
+                windows.location.reload();
             }
             // Add genesis block before replay starts
             addGenesisBlock();
