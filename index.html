@@ -288,6 +288,7 @@ document.getElementById('fileInput').addEventListener('change', handleFileUpload
             logIndex = 0;
              // Clear graph before new replay
             d3.select('#graph').html('');
+            document.querySelector('button').disabled = true;
             if (intervalId) {
                 clearInterval(intervalId);
                 location.reload();
