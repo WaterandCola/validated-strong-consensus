@@ -425,6 +425,7 @@ if (logIndex >= logs.length) {
 }
 
         function drawGraph() {
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             // Dynamically adjust width and height based on data size
             const blockCount = Object.keys(blockStorage).length;
             const voteCount = Object.keys(voteStorage).length;
@@ -486,12 +487,12 @@ if (logIndex >= logs.length) {
                 .attr('fill', d => consensusBlocks.has(d.id) ? 'green' : '#1f77b4')
                 .attr('stroke', '#000')
                 .attr('stroke-width', 1.5)
-                .on('mouseover', (event, d) => {
+                .on(isTouchDevice ? 'touchstart' : 'mouseover', (event, d) => {
                     showTooltip(event, `Block ID: ${d.id}`);
                     highlightBlock(d.id);
                     pause_=1;
                 })
-                .on('mouseout', () => {
+                .on(isTouchDevice ? 'touchend' : 'mouseout', () => {
                     hideTooltip();
                     resetHighlighting();
                     pause_=0;
@@ -503,12 +504,12 @@ if (logIndex >= logs.length) {
                 .attr('fill', '#ff7f0e')
                 .attr('stroke', '#000')
                 .attr('stroke-width', 1.5)
-                .on('mouseover', (event, d) => {
+                .on(isTouchDevice ? 'touchstart' : 'mouseover', (event, d) => {
                     showTooltip(event, `Vote ID: ${d.id}`);
                     highlightVote(d.id,true);
                     pause_=1;
                 })
-                .on('mouseout', () => {
+                .on(isTouchDevice ? 'touchend' : 'mouseout', () => {
                     hideTooltip();
                     resetHighlighting();
                     pause_=0;
