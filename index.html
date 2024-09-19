@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consensus Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        #logsInput {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fafafa;
+            font-size: 14px;
+            color: #555;
+            box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #graph {
+            width: 100%;
+            height: 800px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background-color: white;
+            margin-bottom: 30px;
+            overflow: auto;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            width: auto;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 5px;
+            pointer-events: none;
+            font-size: 13px;
+        }
+
+        .vcText {
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Consensus Visualization</h1>
+    <textarea id="logsInput">Setup completed
+        [1726708216.8132124] Node 0 cast a vote for the Genesis block at vote height 0.
+        [1726708216.8465104] Node 1 cast a vote for the Genesis block at vote height 0.
+        [1726708216.8782961] Node 1 proposed block block_1_1_8802 at consensus height 1 extending from genesis
+        [1726708216.9578435] Node 2 cast a vote for the Genesis block at vote height 0.
+        [1726708217.0221412] Node 3 cast a vote for the Genesis block at vote height 0.
+        [1726708217.1784449] Node 4 cast a vote for the Genesis block at vote height 0.
+        [1726708217.4449031] Node 5 cast a vote for the Genesis block at vote height 0.
+        [1726708217.635058] Node 6 cast a vote for the Genesis block at vote height 0.
+        [1726708223.872807] Node 4 cast a vote for block block_1_1_8802 at vote height 1. This vote is linked to the following nodes' vote at vote height 0: [2, 4, 0, 1, 3, 6] The VC of this vote is:{'genesis': 6}
+        [1726708224.4237003] Node 0 cast a vote for block block_1_1_8802 at vote height 1. This vote is linked to the following nodes' vote at vote height 0: [1, 2, 0, 3, 4, 5, 6] The VC of this vote is:{'genesis': 7}
+        [1726708229.4574342] Node 1 cast a vote for block block_1_1_8802 at vote height 1. This vote is linked to the following nodes' vote at vote height 0: [0, 2, 1, 4, 6] The VC of this vote is:{'genesis': 5}
+        [1726708230.0004146] Node 3 proposed block block_3_2_4676 at consensus height 2 extending from block_1_1_8802
+        [1726708230.1452909] Node 3 cast a vote for block block_1_1_8802 at vote height 1. This vote is linked to the following nodes' vote at vote height 0: [0, 4, 3, 1, 6, 5] The VC of this vote is:{'genesis': 6}
+        [1726708230.2700992] Node 2 cast a vote for block block_1_1_8802 at vote height 1. This vote is linked to the following nodes' vote at vote height 0: [0, 2, 1, 4, 3, 6] The VC of this vote is:{'genesis': 6}
+        [1726708230.4442844] Node 6 cast a vote for block block_1_1_8802 at vote height 1. This vote is linked to the following nodes' vote at vote height 0: [6, 0, 4, 5, 2] The VC of this vote is:{'genesis': 5}
+        [1726708233.4488804] Node 5 cast a vote for block block_1_1_8802 at vote height 1. This vote is linked to the following nodes' vote at vote height 0: [0, 2, 5, 4, 3, 6] The VC of this vote is:{'genesis': 6}
+        [1726708239.1869123] Node 3 cast a vote for block block_3_2_4676 at vote height 2. This vote is linked to the following nodes' vote at vote height 1: [3, 0, 4, 1, 2, 6, 5] The VC of this vote is:{'genesis': 14, 'block_1_1_8802': 7}
+        [1726708239.6083171] Node 4 cast a vote for block block_3_2_4676 at vote height 2. This vote is linked to the following nodes' vote at vote height 1: [4, 0, 1, 3, 6, 2, 5] The VC of this vote is:{'genesis': 14, 'block_1_1_8802': 7}
+        [1726708240.3477056] Node 4 proposed block block_4_3_1707 at consensus height 3 extending from block_3_2_4676
+        [1726708244.3810194] Node 6 cast a vote for block block_3_2_4676 at vote height 2. This vote is linked to the following nodes' vote at vote height 1: [6, 0, 3, 2, 4, 5] The VC of this vote is:{'genesis': 13, 'block_1_1_8802': 6}
+        [1726708247.69937] Node 2 cast a vote for block block_3_2_4676 at vote height 2. This vote is linked to the following nodes' vote at vote height 1: [2, 1, 0, 3, 4, 6, 5] The VC of this vote is:{'genesis': 14, 'block_1_1_8802': 7}
+        [1726708248.40287] Node 0 cast a vote for block block_3_2_4676 at vote height 2. This vote is linked to the following nodes' vote at vote height 1: [0, 1, 4, 3, 2, 5, 6] The VC of this vote is:{'genesis': 14, 'block_1_1_8802': 7}
+        [1726708250.165914] Node 5 proposed block block_5_3_3934 at consensus height 3 extending from block_3_2_4676
+        [1726708250.5896742] Node 1 cast a vote for block block_3_2_4676 at vote height 2. This vote is linked to the following nodes' vote at vote height 1: [1, 0, 4, 3, 2, 5, 6] The VC of this vote is:{'genesis': 14, 'block_1_1_8802': 7}
+        [1726708251.4545813] Node 5 cast a vote for block block_3_2_4676 at vote height 2. This vote is linked to the following nodes' vote at vote height 1: [5, 4, 0, 2, 1, 6, 3] The VC of this vote is:{'genesis': 14, 'block_1_1_8802': 7}
+        [1726708254.1524134] Node 4 cast a vote for block block_4_3_1707 at vote height 3. This vote is linked to the following nodes' vote at vote height 2: [4, 3, 6, 2, 1, 5] The VC of this vote is:{'genesis': 20, 'block_1_1_8802': 13, 'block_3_2_4676': 6}
+        [1726708259.2622967] Node 2 thinks Consensus reached on block genesis at height 2 because genesis got 14 supports, None got 0 supports, the missing votes are 0.
+        [1726708260.0893538] Node 6 proposed block block_6_4_7385 at consensus height 4 extending from block_4_3_1707
+        [1726708260.416733] Node 6 cast a vote for block block_4_3_1707 at vote height 3. This vote is linked to the following nodes' vote at vote height 2: [6, 4, 3, 2, 0] The VC of this vote is:{'genesis': 19, 'block_1_1_8802': 12, 'block_3_2_4676': 5}
+        [1726708261.979844] Node 1 cast a vote for block block_4_3_1707 at vote height 3. This vote is linked to the following nodes' vote at vote height 2: [1, 4, 3, 6, 2] The VC of this vote is:{'genesis': 19, 'block_1_1_8802': 12, 'block_3_2_4676': 5}
+        [1726708263.8207178] Node 2 cast a vote for block block_4_3_1707 at vote height 3. This vote is linked to the following nodes' vote at vote height 2: [2, 4, 3, 6, 5, 1, 0] The VC of this vote is:{'genesis': 21, 'block_1_1_8802': 14, 'block_3_2_4676': 7}
+        [1726708269.4646575] Node 3 cast a vote for block block_4_3_1707 at vote height 3. This vote is linked to the following nodes' vote at vote height 2: [3, 4, 6, 2, 0, 5] The VC of this vote is:{'genesis': 20, 'block_1_1_8802': 13, 'block_3_2_4676': 6}
+        [1726708270.0182219] Node 0 proposed block block_0_3_6063 at consensus height 3 extending from block_3_2_4676
+        [1726708271.439543] Node 4 thinks Consensus reached on block block_1_1_8802 at height 3 because block_1_1_8802 got 13 supports, None got 0 supports, the missing votes are 1.
+        [1726708272.2705853] Node 5 cast a vote for block block_5_3_3934 at vote height 3. This vote is linked to the following nodes' vote at vote height 2: [5, 4, 3, 6, 2] The VC of this vote is:{'genesis': 19, 'block_1_1_8802': 12, 'block_3_2_4676': 5}
+        [1726708274.3867612] Node 4 cast a vote for block block_6_4_7385 at vote height 4. This vote is linked to the following nodes' vote at vote height 3: [4, 6, 1, 2, 3] The VC of this vote is:{'genesis': 26, 'block_1_1_8802': 19, 'block_3_2_4676': 12, 'block_4_3_1707': 5}
+        [1726708280.0863261] Node 1 proposed block block_1_4_1421 at consensus height 4 extending from block_4_3_1707
+        [1726708280.388364] Node 0 cast a vote for block block_0_3_6063 at vote height 3. This vote is linked to the following nodes' vote at vote height 2: [0, 4, 3, 6, 2, 5] The VC of this vote is:{'genesis': 20, 'block_1_1_8802': 13, 'block_3_2_4676': 6}
+        [1726708285.1991985] Node 6 cast a vote for block block_6_4_7385 at vote height 4. This vote is linked to the following nodes' vote at vote height 3: [6, 4, 1, 2, 3] The VC of this vote is:{'genesis': 26, 'block_1_1_8802': 19, 'block_3_2_4676': 12, 'block_4_3_1707': 5}
+        [1726708289.9352608] Node 2 cast a vote for block block_6_4_7385 at vote height 4. This vote is linked to the following nodes' vote at vote height 3: [2, 4, 1, 6, 3] The VC of this vote is:{'genesis': 26, 'block_1_1_8802': 19, 'block_3_2_4676': 12, 'block_4_3_1707': 5}
+        [1726708290.0018246] Node 2 proposed block block_2_5_4221 at consensus height 5 extending from block_6_4_7385
+        [1726708290.989421] Node 1 cast a vote for block block_1_4_1421 at vote height 4. This vote is linked to the following nodes' vote at vote height 3: [1, 4, 6, 2, 3] The VC of this vote is:{'genesis': 26, 'block_1_1_8802': 19, 'block_3_2_4676': 12, 'block_4_3_1707': 5}
+        [1726708291.7064462] Node 3 cast a vote for block block_6_4_7385 at vote height 4. This vote is linked to the following nodes' vote at vote height 3: [3, 4, 6, 1, 2] The VC of this vote is:{'genesis': 26, 'block_1_1_8802': 19, 'block_3_2_4676': 12, 'block_4_3_1707': 5}
+        [1726708294.8995028] Node 4 thinks Consensus reached on block block_3_2_4676 at height 4 because block_3_2_4676 got 12 supports, None got 0 supports, the missing votes are 2.
+        [1726708297.7868845] Node 4 cast a vote for block block_2_5_4221 at vote height 5. This vote is linked to the following nodes' vote at vote height 4: [4, 6, 2, 1, 3] The VC of this vote is:{'genesis': 31, 'block_1_1_8802': 24, 'block_3_2_4676': 17, 'block_4_3_1707': 10, 'block_6_4_7385': 4, 'block_1_4_1421': 1}
+        [1726708300.5832264] Node 3 proposed block block_3_5_3748 at consensus height 5 extending from block_6_4_7385
+        [1726708310.072714] Node 4 proposed block block_4_6_9768 at consensus height 6 extending from block_2_5_4221
+        [1726708320.0130234] Node 0 cast a vote for block block_6_4_7385 at vote height 4. This vote is linked to the following nodes' vote at vote height 3: [0, 4, 6, 1, 2] The VC of this vote is:{'genesis': 26, 'block_1_1_8802': 19, 'block_3_2_4676': 12, 'block_0_3_6063': 1, 'block_4_3_1707': 4}
+        [1726708320.0605202] Node 5 proposed block block_5_5_6383 at consensus height 5 extending from block_6_4_7385
+        [1726708326.1699584] Node 2 cast a vote for block block_2_5_4221 at vote height 5. This vote is linked to the following nodes' vote at vote height 4: [2, 4, 6, 1, 3] The VC of this vote is:{'genesis': 31, 'block_1_1_8802': 24, 'block_3_2_4676': 17, 'block_4_3_1707': 10, 'block_6_4_7385': 4, 'block_1_4_1421': 1}
+        [1726708329.4520137] Node 6 cast a vote for block block_2_5_4221 at vote height 5. This vote is linked to the following nodes' vote at vote height 4: [6, 4, 1, 3, 2] The VC of this vote is:{'genesis': 31, 'block_1_1_8802': 24, 'block_3_2_4676': 17, 'block_4_3_1707': 10, 'block_6_4_7385': 4, 'block_1_4_1421': 1}
+        [1726708329.6240466] Node 1 cast a vote for block block_2_5_4221 at vote height 5. This vote is linked to the following nodes' vote at vote height 4: [1, 4, 6, 2, 3] The VC of this vote is:{'genesis': 31, 'block_1_1_8802': 24, 'block_3_2_4676': 17, 'block_4_3_1707': 10, 'block_1_4_1421': 1, 'block_6_4_7385': 4}
+        [1726708330.5366802] Node 6 proposed block block_6_6_3167 at consensus height 6 extending from block_2_5_4221
+        [1726708331.182239] Node 5 cast a vote for block block_6_4_7385 at vote height 4. This vote is linked to the following nodes' vote at vote height 3: [5, 4, 6, 1, 2] The VC of this vote is:{'genesis': 26, 'block_1_1_8802': 19, 'block_3_2_4676': 12, 'block_5_3_3934': 1, 'block_4_3_1707': 4}
+        [1726708340.0082178] Node 0 proposed block block_0_5_2710 at consensus height 5 extending from block_6_4_7385
+        [1726708350.0378654] Node 1 proposed block block_1_7_1023 at consensus height 7 extending from block_4_6_9768
+        [1726708352.9535677] Node 3 cast a vote for block block_3_5_3748 at vote height 5. This vote is linked to the following nodes' vote at vote height 4: [3, 4, 6, 2, 1] The VC of this vote is:{'genesis': 31, 'block_1_1_8802': 24, 'block_3_2_4676': 17, 'block_4_3_1707': 10, 'block_6_4_7385': 4, 'block_1_4_1421': 1}
+        [1726708356.6834693] Node 0 cast a vote for block block_0_5_2710 at vote height 5. This vote is linked to the following nodes' vote at vote height 4: [0, 4, 6, 2, 3, 1] The VC of this vote is:{'genesis': 33, 'block_1_1_8802': 26, 'block_3_2_4676': 19, 'block_0_3_6063': 1, 'block_4_3_1707': 11, 'block_6_4_7385': 5, 'block_1_4_1421': 1}
+        [1726708360.0123935] Node 2 proposed block block_2_6_3100 at consensus height 6 extending from block_2_5_4221
+        [1726708364.6396034] Node 4 cast a vote for block block_4_6_9768 at vote height 6. This vote is linked to the following nodes' vote at vote height 5: [4, 2, 1, 6, 3] The VC of this vote is:{'genesis': 36, 'block_1_1_8802': 29, 'block_3_2_4676': 22, 'block_4_3_1707': 15, 'block_6_4_7385': 9, 'block_1_4_1421': 1, 'block_2_5_4221': 4, 'block_3_5_3748': 1}
+        [1726708370.1734602] Node 3 proposed block block_3_6_6935 at consensus height 6 extending from block_3_5_3748
+        [1726708378.0887241] Node 1 thinks Consensus reached on block block_4_3_1707 at height 5 because block_4_3_1707 got 10 supports, None got 0 supports, the missing votes are 2.
+        [1726708380.1813238] Node 4 proposed block block_4_8_5495 at consensus height 8 extending from block_1_7_1023
+        [1726708383.9771857] Node 3 cast a vote for block block_4_6_9768 at vote height 6. This vote is linked to the following nodes' vote at vote height 5: [4, 3, 2, 1, 6] The VC of this vote is:{'genesis': 36, 'block_1_1_8802': 29, 'block_3_2_4676': 22, 'block_4_3_1707': 15, 'block_6_4_7385': 9, 'block_1_4_1421': 1, 'block_2_5_4221': 4, 'block_3_5_3748': 1}
+        [1726708384.5013325] Node 1 cast a vote for block block_4_6_9768 at vote height 6. This vote is linked to the following nodes' vote at vote height 5: [1, 4, 2, 6, 3] The VC of this vote is:{'genesis': 36, 'block_1_1_8802': 29, 'block_3_2_4676': 22, 'block_4_3_1707': 15, 'block_1_4_1421': 1, 'block_6_4_7385': 9, 'block_2_5_4221': 4, 'block_3_5_3748': 1}
+        [1726708390.0757415] Node 5 proposed block block_5_6_8564 at consensus height 6 extending from block_5_5_6383
+        [1726708395.1428504] Node 5 cast a vote for block block_5_5_6383 at vote height 5. This vote is linked to the following nodes' vote at vote height 4: [5, 4, 6, 2, 3] The VC of this vote is:{'genesis': 32, 'block_1_1_8802': 25, 'block_3_2_4676': 18, 'block_5_3_3934': 1, 'block_4_3_1707': 10, 'block_6_4_7385': 5}
+        [1726708400.5527678] Node 6 proposed block block_6_7_5930 at consensus height 7 extending from block_6_6_3167
+        [1726708401.329673] Node 6 cast a vote for block block_6_6_3167 at vote height 6. This vote is linked to the following nodes' vote at vote height 5: [6, 4, 2, 1, 3] The VC of this vote is:{'genesis': 36, 'block_1_1_8802': 29, 'block_3_2_4676': 22, 'block_4_3_1707': 15, 'block_6_4_7385': 9, 'block_1_4_1421': 1, 'block_2_5_4221': 4, 'block_3_5_3748': 1}
+        [1726708410.124183] Node 0 proposed block block_0_6_8204 at consensus height 6 extending from block_0_5_2710
+        [1726708414.7681072] Node 0 cast a vote for block block_4_6_9768 at vote height 6. This vote is linked to the following nodes' vote at vote height 5: [0, 4, 2, 1, 6] The VC of this vote is:{'genesis': 38, 'block_1_1_8802': 31, 'block_3_2_4676': 24, 'block_0_3_6063': 1, 'block_4_3_1707': 16, 'block_6_4_7385': 10, 'block_1_4_1421': 1, 'block_0_5_2710': 1, 'block_2_5_4221': 4}
+        [1726708420.0005805] Node 1 proposed block block_1_9_7447 at consensus height 9 extending from block_4_8_5495
+        [1726708420.0841675] Node 2 cast a vote for block block_2_6_3100 at vote height 6. This vote is linked to the following nodes' vote at vote height 5: [2, 4, 1, 6, 3] The VC of this vote is:{'genesis': 36, 'block_1_1_8802': 29, 'block_3_2_4676': 22, 'block_4_3_1707': 15, 'block_6_4_7385': 9, 'block_1_4_1421': 1, 'block_2_5_4221': 4, 'block_3_5_3748': 1}
+        [1726708430.0203779] Node 2 proposed block block_2_7_6048 at consensus height 7 extending from block_2_6_3100
+        [1726708440.074369] Node 3 proposed block block_3_8_9315 at consensus height 8 extending from block_1_7_1023
+        [1726708443.05826] Node 4 thinks Consensus reached on block block_6_4_7385 at height 6 because block_6_4_7385 got 9 supports, block_1_4_1421 got 1 supports, the missing votes are 2.
+        [1726708444.9199035] Node 4 cast a vote for block block_1_7_1023 at vote height 7. This vote is linked to the following nodes' vote at vote height 6: [4, 1, 3, 6, 0] The VC of this vote is:{'genesis': 44, 'block_1_1_8802': 37, 'block_3_2_4676': 30, 'block_4_3_1707': 22, 'block_0_3_6063': 1, 'block_6_4_7385': 16, 'block_1_4_1421': 1, 'block_2_5_4221': 9, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 4, 'block_6_6_3167': 1}
+        [1726708450.1240172] Node 4 proposed block block_4_10_2929 at consensus height 10 extending from block_1_9_7447
+        [1726708450.690809] Node 1 cast a vote for block block_1_7_1023 at vote height 7. This vote is linked to the following nodes' vote at vote height 6: [1, 4, 6, 3, 0] The VC of this vote is:{'genesis': 44, 'block_1_1_8802': 37, 'block_3_2_4676': 30, 'block_4_3_1707': 22, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 16, 'block_2_5_4221': 9, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 4, 'block_6_6_3167': 1}
+        [1726708460.000581] Node 5 proposed block block_5_7_4692 at consensus height 7 extending from block_5_6_8564
+        [1726708470.0689483] Node 6 proposed block block_6_9_9252 at consensus height 9 extending from block_4_8_5495
+        [1726708470.5503829] Node 6 cast a vote for block block_1_7_1023 at vote height 7. This vote is linked to the following nodes' vote at vote height 6: [6, 4, 1, 3, 0] The VC of this vote is:{'genesis': 44, 'block_1_1_8802': 37, 'block_3_2_4676': 30, 'block_4_3_1707': 22, 'block_0_3_6063': 1, 'block_6_4_7385': 16, 'block_1_4_1421': 1, 'block_2_5_4221': 9, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_6_6_3167': 1, 'block_4_6_9768': 4}
+        [1726708480.6764283] Node 0 proposed block block_0_9_2140 at consensus height 9 extending from block_4_8_5495
+        [1726708483.3710244] Node 5 cast a vote for block block_4_6_9768 at vote height 6. This vote is linked to the following nodes' vote at vote height 5: [5, 4, 1, 6, 2] The VC of this vote is:{'genesis': 38, 'block_1_1_8802': 31, 'block_3_2_4676': 24, 'block_5_3_3934': 1, 'block_4_3_1707': 16, 'block_6_4_7385': 10, 'block_1_4_1421': 1, 'block_5_5_6383': 1, 'block_2_5_4221': 4}
+        [1726708485.2600915] Node 2 cast a vote for block block_1_7_1023 at vote height 7. This vote is linked to the following nodes' vote at vote height 6: [2, 4, 1, 3, 6] The VC of this vote is:{'genesis': 41, 'block_1_1_8802': 34, 'block_3_2_4676': 27, 'block_4_3_1707': 20, 'block_6_4_7385': 14, 'block_1_4_1421': 1, 'block_2_5_4221': 9, 'block_3_5_3748': 1, 'block_2_6_3100': 1, 'block_4_6_9768': 3, 'block_6_6_3167': 1}
+        [1726708490.0328023] Node 1 proposed block block_1_11_530 at consensus height 11 extending from block_4_10_2929
+        [1726708495.24284] Node 0 cast a vote for block block_1_7_1023 at vote height 7. This vote is linked to the following nodes' vote at vote height 6: [0, 4, 1, 6, 3] The VC of this vote is:{'genesis': 44, 'block_1_1_8802': 37, 'block_3_2_4676': 30, 'block_0_3_6063': 1, 'block_4_3_1707': 22, 'block_6_4_7385': 16, 'block_1_4_1421': 1, 'block_0_5_2710': 1, 'block_2_5_4221': 9, 'block_3_5_3748': 1, 'block_4_6_9768': 4, 'block_6_6_3167': 1}
+        [1726708500.0041533] Node 2 proposed block block_2_9_7463 at consensus height 9 extending from block_4_8_5495
+        [1726708510.3168192] Node 3 proposed block block_3_9_1291 at consensus height 9 extending from block_3_8_9315
+        [1726708520.0010102] Node 4 proposed block block_4_11_4440 at consensus height 11 extending from block_4_10_2929
+        [1726708523.294385] Node 1 cast a vote for block block_4_8_5495 at vote height 8. This vote is linked to the following nodes' vote at vote height 7: [1, 4, 6, 2, 0] The VC of this vote is:{'genesis': 50, 'block_1_1_8802': 43, 'block_3_2_4676': 36, 'block_4_3_1707': 28, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 22, 'block_2_5_4221': 15, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 9, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 5}
+        [1726708530.0618238] Node 5 proposed block block_5_8_1960 at consensus height 8 extending from block_1_7_1023
+        [1726708536.5487957] Node 4 thinks Consensus reached on block block_2_5_4221 at height 7 because block_2_5_4221 got 9 supports, block_3_5_3748 got 1 supports, the missing votes are 2.
+        [1726708540.4272466] Node 4 cast a vote for block block_4_8_5495 at vote height 8. This vote is linked to the following nodes' vote at vote height 7: [4, 1, 2, 6, 0] The VC of this vote is:{'genesis': 50, 'block_1_1_8802': 43, 'block_3_2_4676': 36, 'block_4_3_1707': 28, 'block_0_3_6063': 1, 'block_6_4_7385': 22, 'block_1_4_1421': 1, 'block_2_5_4221': 15, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 9, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 5}
+        [1726708540.5840425] Node 6 proposed block block_6_10_8711 at consensus height 10 extending from block_6_9_9252
+        [1726708541.8111165] Node 3 cast a vote for block block_1_7_1023 at vote height 7. This vote is linked to the following nodes' vote at vote height 6: [3, 4, 1, 6, 0] The VC of this vote is:{'genesis': 44, 'block_1_1_8802': 37, 'block_3_2_4676': 30, 'block_4_3_1707': 22, 'block_0_3_6063': 1, 'block_6_4_7385': 16, 'block_1_4_1421': 1, 'block_2_5_4221': 9, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 4, 'block_6_6_3167': 1}
+        [1726708546.5596755] Node 6 cast a vote for block block_4_8_5495 at vote height 8. This vote is linked to the following nodes' vote at vote height 7: [6, 4, 1, 2, 0] The VC of this vote is:{'genesis': 50, 'block_1_1_8802': 43, 'block_3_2_4676': 36, 'block_4_3_1707': 28, 'block_0_3_6063': 1, 'block_6_4_7385': 22, 'block_1_4_1421': 1, 'block_2_5_4221': 15, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_6_6_3167': 1, 'block_4_6_9768': 9, 'block_2_6_3100': 1, 'block_1_7_1023': 5}
+        [1726708550.091678] Node 0 proposed block block_0_10_1091 at consensus height 10 extending from block_0_9_2140
+        [1726708552.7582722] Node 5 cast a vote for block block_1_7_1023 at vote height 7. This vote is linked to the following nodes' vote at vote height 6: [5, 4, 1, 3, 0] The VC of this vote is:{'genesis': 47, 'block_1_1_8802': 40, 'block_3_2_4676': 33, 'block_5_3_3934': 1, 'block_4_3_1707': 24, 'block_0_3_6063': 1, 'block_6_4_7385': 18, 'block_1_4_1421': 1, 'block_5_5_6383': 1, 'block_2_5_4221': 9, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 5}
+        [1726708560.1093752] Node 1 proposed block block_1_12_2297 at consensus height 12 extending from block_1_11_530
+        [1726708570.0010588] Node 2 proposed block block_2_10_1681 at consensus height 10 extending from block_2_9_7463
+        [1726708572.1815155] Node 2 cast a vote for block block_4_8_5495 at vote height 8. This vote is linked to the following nodes' vote at vote height 7: [2, 4, 1, 6, 0] The VC of this vote is:{'genesis': 50, 'block_1_1_8802': 43, 'block_3_2_4676': 36, 'block_4_3_1707': 28, 'block_0_3_6063': 1, 'block_6_4_7385': 22, 'block_1_4_1421': 1, 'block_2_5_4221': 15, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_2_6_3100': 1, 'block_4_6_9768': 9, 'block_6_6_3167': 1, 'block_1_7_1023': 5}
+        [1726708578.4103725] Node 0 cast a vote for block block_4_8_5495 at vote height 8. This vote is linked to the following nodes' vote at vote height 7: [0, 4, 1, 6, 2] The VC of this vote is:{'genesis': 50, 'block_1_1_8802': 43, 'block_3_2_4676': 36, 'block_0_3_6063': 1, 'block_4_3_1707': 28, 'block_6_4_7385': 22, 'block_1_4_1421': 1, 'block_0_5_2710': 1, 'block_2_5_4221': 15, 'block_3_5_3748': 1, 'block_4_6_9768': 9, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 5}
+        [1726708578.9472985] Node 1 thinks Consensus reached on block block_4_6_9768 at height 8 because block_4_6_9768 got 9 supports, block_6_6_3167 got 1 supports, the missing votes are 2.
+        [1726708580.0956116] Node 3 proposed block block_3_10_6625 at consensus height 10 extending from block_3_9_1291
+        [1726708582.9663076] Node 1 cast a vote for block block_1_9_7447 at vote height 9. This vote is linked to the following nodes' vote at vote height 8: [1, 6, 4, 2, 0] The VC of this vote is:{'genesis': 55, 'block_1_1_8802': 48, 'block_3_2_4676': 41, 'block_4_3_1707': 33, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 27, 'block_2_5_4221': 20, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 14, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 10, 'block_4_8_5495': 5}
+        [1726708590.159682] Node 4 proposed block block_4_12_1137 at consensus height 12 extending from block_4_11_4440
+        [1726708593.9770803] Node 6 cast a vote for block block_6_9_9252 at vote height 9. This vote is linked to the following nodes' vote at vote height 8: [6, 1, 4, 0, 2] The VC of this vote is:{'genesis': 55, 'block_1_1_8802': 48, 'block_3_2_4676': 41, 'block_4_3_1707': 33, 'block_0_3_6063': 1, 'block_6_4_7385': 27, 'block_1_4_1421': 1, 'block_2_5_4221': 20, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_6_6_3167': 1, 'block_4_6_9768': 14, 'block_2_6_3100': 1, 'block_1_7_1023': 10, 'block_4_8_5495': 5}
+        [1726708600.008456] Node 5 proposed block block_5_9_700 at consensus height 9 extending from block_5_8_1960
+        [1726708610.3656218] Node 6 proposed block block_6_11_8859 at consensus height 11 extending from block_6_10_8711
+        [1726708617.4361348] Node 2 cast a vote for block block_2_9_7463 at vote height 9. This vote is linked to the following nodes' vote at vote height 8: [2, 1, 4, 6, 0] The VC of this vote is:{'genesis': 55, 'block_1_1_8802': 48, 'block_3_2_4676': 41, 'block_4_3_1707': 33, 'block_0_3_6063': 1, 'block_6_4_7385': 27, 'block_1_4_1421': 1, 'block_2_5_4221': 20, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_2_6_3100': 1, 'block_4_6_9768': 14, 'block_6_6_3167': 1, 'block_1_7_1023': 10, 'block_4_8_5495': 5}
+        [1726708620.0014093] Node 0 proposed block block_0_11_5647 at consensus height 11 extending from block_0_10_1091
+        [1726708630.1461737] Node 1 proposed block block_1_13_2565 at consensus height 13 extending from block_1_12_2297
+        [1726708634.0457783] Node 0 cast a vote for block block_0_9_2140 at vote height 9. This vote is linked to the following nodes' vote at vote height 8: [0, 1, 4, 6, 2] The VC of this vote is:{'genesis': 55, 'block_1_1_8802': 48, 'block_3_2_4676': 41, 'block_0_3_6063': 1, 'block_4_3_1707': 33, 'block_6_4_7385': 27, 'block_1_4_1421': 1, 'block_0_5_2710': 1, 'block_2_5_4221': 20, 'block_3_5_3748': 1, 'block_4_6_9768': 14, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 10, 'block_4_8_5495': 5}
+        [1726708640.0272264] Node 2 proposed block block_2_11_7696 at consensus height 11 extending from block_2_10_1681
+        [1726708647.4903698] Node 3 cast a vote for block block_3_8_9315 at vote height 8. This vote is linked to the following nodes' vote at vote height 7: [3, 4, 1, 6, 2] The VC of this vote is:{'genesis': 50, 'block_1_1_8802': 43, 'block_3_2_4676': 36, 'block_4_3_1707': 28, 'block_0_3_6063': 1, 'block_6_4_7385': 22, 'block_1_4_1421': 1, 'block_2_5_4221': 15, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 9, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 5}
+        [1726708649.0733657] Node 5 cast a vote for block block_5_8_1960 at vote height 8. This vote is linked to the following nodes' vote at vote height 7: [5, 1, 6, 2, 0] The VC of this vote is:{'genesis': 54, 'block_1_1_8802': 47, 'block_3_2_4676': 40, 'block_5_3_3934': 1, 'block_4_3_1707': 31, 'block_0_3_6063': 1, 'block_6_4_7385': 25, 'block_1_4_1421': 1, 'block_5_5_6383': 1, 'block_2_5_4221': 16, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 10, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 5}
+        [1726708650.5093603] Node 3 proposed block block_3_11_9192 at consensus height 11 extending from block_3_10_6625
+        [1726708660.4200072] Node 4 proposed block block_4_13_2394 at consensus height 13 extending from block_4_12_1137
+        [1726708670.0066588] Node 5 proposed block block_5_10_5929 at consensus height 10 extending from block_5_9_700
+        [1726708675.1083786] Node 4 cast a vote for block block_1_9_7447 at vote height 9. This vote is linked to the following nodes' vote at vote height 8: [4, 1, 6, 2, 0] The VC of this vote is:{'genesis': 55, 'block_1_1_8802': 48, 'block_3_2_4676': 41, 'block_4_3_1707': 33, 'block_0_3_6063': 1, 'block_6_4_7385': 27, 'block_1_4_1421': 1, 'block_2_5_4221': 20, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 14, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 10, 'block_4_8_5495': 5}
+        [1726708677.4107451] Node 6 thinks Consensus reached on block block_1_7_1023 at height 9 because block_1_7_1023 got 10 supports, None got 0 supports, the missing votes are 2.
+        [1726708680.0013795] Node 6 proposed block block_6_14_5185 at consensus height 14 extending from block_1_13_2565
+        [1726708680.5900228] Node 6 cast a vote for block block_4_10_2929 at vote height 10. This vote is linked to the following nodes' vote at vote height 9: [1, 6, 2, 0, 4] The VC of this vote is:{'genesis': 60, 'block_1_1_8802': 53, 'block_3_2_4676': 46, 'block_4_3_1707': 38, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 32, 'block_2_5_4221': 25, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 19, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 15, 'block_4_8_5495': 10, 'block_1_9_7447': 2, 'block_6_9_9252': 1, 'block_2_9_7463': 1, 'block_0_9_2140': 1}
+        [1726708683.8052115] Node 1 cast a vote for block block_4_10_2929 at vote height 10. This vote is linked to the following nodes' vote at vote height 9: [1, 6, 0, 2, 4] The VC of this vote is:{'genesis': 60, 'block_1_1_8802': 53, 'block_3_2_4676': 46, 'block_4_3_1707': 38, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 32, 'block_2_5_4221': 25, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 19, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 15, 'block_4_8_5495': 10, 'block_1_9_7447': 2, 'block_6_9_9252': 1, 'block_0_9_2140': 1, 'block_2_9_7463': 1}
+        [1726708690.100552] Node 0 proposed block block_0_12_9762 at consensus height 12 extending from block_0_11_5647
+        [1726708696.6753566] Node 2 cast a vote for block block_4_10_2929 at vote height 10. This vote is linked to the following nodes' vote at vote height 9: [1, 2, 6, 0, 4] The VC of this vote is:{'genesis': 60, 'block_1_1_8802': 53, 'block_3_2_4676': 46, 'block_4_3_1707': 38, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 32, 'block_2_5_4221': 25, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 19, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 15, 'block_4_8_5495': 10, 'block_1_9_7447': 2, 'block_2_9_7463': 1, 'block_6_9_9252': 1, 'block_0_9_2140': 1}
+        [1726708700.0015721] Node 1 proposed block block_1_15_5984 at consensus height 15 extending from block_6_14_5185
+        [1726708719.045484] Node 0 cast a vote for block block_4_10_2929 at vote height 10. This vote is linked to the following nodes' vote at vote height 9: [0, 1, 6, 2, 4] The VC of this vote is:{'genesis': 60, 'block_1_1_8802': 53, 'block_3_2_4676': 46, 'block_0_3_6063': 1, 'block_4_3_1707': 38, 'block_6_4_7385': 32, 'block_1_4_1421': 1, 'block_0_5_2710': 1, 'block_2_5_4221': 25, 'block_3_5_3748': 1, 'block_4_6_9768': 19, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 15, 'block_4_8_5495': 10, 'block_0_9_2140': 1, 'block_1_9_7447': 2, 'block_6_9_9252': 1, 'block_2_9_7463': 1}
+        [1726708710.0737162] Node 2 proposed block block_2_15_8260 at consensus height 15 extending from block_6_14_5185
+        [1726708720.0014863] Node 3 proposed block block_3_12_5326 at consensus height 12 extending from block_3_11_9192
+        [1726708730.1992912] Node 4 proposed block block_4_14_6821 at consensus height 14 extending from block_4_13_2394
+        [1726708740.0217876] Node 5 proposed block block_5_11_8655 at consensus height 11 extending from block_5_10_5929
+        [1726708750.0379095] Node 6 proposed block block_6_16_9854 at consensus height 16 extending from block_1_15_5984
+        [1726708760.055426] Node 0 proposed block block_0_17_6133 at consensus height 17 extending from block_6_16_9854
+        [1726708770.0881162] Node 1 proposed block block_1_18_1274 at consensus height 18 extending from block_0_17_6133
+        [1726708771.2503796] Node 3 cast a vote for block block_1_9_7447 at vote height 9. This vote is linked to the following nodes' vote at vote height 8: [3, 1, 4, 6, 2] The VC of this vote is:{'genesis': 56, 'block_1_1_8802': 49, 'block_3_2_4676': 42, 'block_4_3_1707': 34, 'block_0_3_6063': 1, 'block_6_4_7385': 28, 'block_1_4_1421': 1, 'block_2_5_4221': 21, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 15, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 11, 'block_3_8_9315': 1, 'block_4_8_5495': 4}
+        [1726708776.3580837] Node 1 thinks Consensus reached on block block_4_8_5495 at height 10 because block_4_8_5495 got 10 supports, None got 0 supports, the missing votes are 2.
+        [1726708776.5472] Node 5 cast a vote for block block_1_9_7447 at vote height 9. This vote is linked to the following nodes' vote at vote height 8: [5, 1, 4, 2, 6] The VC of this vote is:{'genesis': 60, 'block_1_1_8802': 53, 'block_3_2_4676': 46, 'block_5_3_3934': 1, 'block_4_3_1707': 37, 'block_0_3_6063': 1, 'block_6_4_7385': 31, 'block_1_4_1421': 1, 'block_5_5_6383': 1, 'block_2_5_4221': 22, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 16, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 11, 'block_5_8_1960': 1, 'block_4_8_5495': 4}
+        [1726708778.0731926] Node 4 cast a vote for block block_4_10_2929 at vote height 10. This vote is linked to the following nodes' vote at vote height 9: [4, 6, 1, 0, 2] The VC of this vote is:{'genesis': 60, 'block_1_1_8802': 53, 'block_3_2_4676': 46, 'block_4_3_1707': 38, 'block_0_3_6063': 1, 'block_6_4_7385': 32, 'block_1_4_1421': 1, 'block_2_5_4221': 25, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 19, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 15, 'block_4_8_5495': 10, 'block_1_9_7447': 2, 'block_6_9_9252': 1, 'block_0_9_2140': 1, 'block_2_9_7463': 1}
+        [1726708780.0376623] Node 2 proposed block block_2_16_1568 at consensus height 16 extending from block_2_15_8260
+        [1726708780.273717] Node 0 cast a vote for block block_1_11_530 at vote height 11. This vote is linked to the following nodes' vote at vote height 10: [6, 1, 0, 2, 4] The VC of this vote is:{'genesis': 65, 'block_1_1_8802': 58, 'block_3_2_4676': 51, 'block_4_3_1707': 43, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 37, 'block_2_5_4221': 30, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 24, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 20, 'block_4_8_5495': 15, 'block_1_9_7447': 7, 'block_6_9_9252': 1, 'block_2_9_7463': 1, 'block_0_9_2140': 1, 'block_4_10_2929': 5}
+        [1726708782.02235] Node 1 cast a vote for block block_1_11_530 at vote height 11. This vote is linked to the following nodes' vote at vote height 10: [1, 6, 2, 0, 4] The VC of this vote is:{'genesis': 65, 'block_1_1_8802': 58, 'block_3_2_4676': 51, 'block_4_3_1707': 43, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 37, 'block_2_5_4221': 30, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 24, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 20, 'block_4_8_5495': 15, 'block_1_9_7447': 7, 'block_6_9_9252': 1, 'block_0_9_2140': 1, 'block_2_9_7463': 1, 'block_4_10_2929': 5}
+        [1726708782.7430797] Node 2 cast a vote for block block_1_11_530 at vote height 11. This vote is linked to the following nodes' vote at vote height 10: [2, 6, 1, 0, 4] The VC of this vote is:{'genesis': 65, 'block_1_1_8802': 58, 'block_3_2_4676': 51, 'block_4_3_1707': 43, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 37, 'block_2_5_4221': 30, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 24, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 20, 'block_4_8_5495': 15, 'block_1_9_7447': 7, 'block_2_9_7463': 1, 'block_6_9_9252': 1, 'block_0_9_2140': 1, 'block_4_10_2929': 5}
+        [1726708783.768097] Node 6 cast a vote for block block_1_11_530 at vote height 11. This vote is linked to the following nodes' vote at vote height 10: [6, 1, 2, 0, 4] The VC of this vote is:{'genesis': 65, 'block_1_1_8802': 58, 'block_3_2_4676': 51, 'block_4_3_1707': 43, 'block_0_3_6063': 1, 'block_1_4_1421': 1, 'block_6_4_7385': 37, 'block_2_5_4221': 30, 'block_3_5_3748': 1, 'block_0_5_2710': 1, 'block_4_6_9768': 24, 'block_6_6_3167': 1, 'block_2_6_3100': 1, 'block_1_7_1023': 20, 'block_4_8_5495': 15, 'block_1_9_7447': 7, 'block_6_9_9252': 1, 'block_2_9_7463': 1, 'block_0_9_2140': 1, 'block_4_10_2929': 5}
+        [1726708790.3308046] Node 3 proposed block block_3_13_7627 at consensus height 13 extending from block_1_12_2297
+        [1726708800.5480845] Node 4 proposed block block_4_15_9757 at consensus height 15 extending from block_4_14_6821
+        [1726708810.1391022] Node 5 proposed block block_5_13_6493 at consensus height 13 extending from block_1_12_2297
+        [1726708820.0004725] Node 6 proposed block block_6_19_863 at consensus height 19 extending from block_1_18_1274
+        </textarea>
+    <input type="file" id="fileInput" accept=".txt" />
+    <button onclick="startReplay()">Start Replay</button>
+    <h2>Graph (Green block is consensually accepted block)</h2>
+    <div id="graph"></div>
+    <div class="tooltip" id="tooltip" style="opacity: 0;"></div>
+
+    <script>
+        let links = [];
+        let blockLinks = [];
+        let voteLinks = [];
+        let blockStorage = {};
+        let voteStorage = {};
+        let nodes = [];
+        let logIndex = 0;
+        let logs = [];
+        let intervalId = null;
+        let consensusBlocks = new Set();
+        let pause_ =0;
+        let consensusLogs = [];
+        function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('logsInput').value = e.target.result;
+        };
+        reader.readAsText(file);
+    }
+}
+
+// Attach event listener to the file input
+document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        // Add Genesis Block
+        function addGenesisBlock() {
+            const genesisBlock = {
+                id: "genesis",
+                height: 0,
+                node: "Genesis",
+                type: "block"
+            };
+    
+            if (!blockStorage[0]) {
+                blockStorage[0] = [];
+            }
+            blockStorage[0].push(genesisBlock);
+        }
+    
+        function startReplay() {
+            logs = document.getElementById('logsInput').value.split('\n');
+            logIndex = 0;
+             // Clear graph before new replay
+            d3.select('#graph').html('');
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+    
+            // Add genesis block before replay starts
+            addGenesisBlock();
+    
+            intervalId = setInterval(processLog, 1000);
+        }
+    
+        function processLog() {
+    if (logIndex >= logs.length) {
+        clearInterval(intervalId);
+        return;
+    }
+
+    if (pause_ == 0) {
+        const log = logs[logIndex];
+        logIndex++;
+
+        if (log.includes('proposed block')) {
+            const blockInfo = log.match(/block (\S+) at consensus height (\d+)/);
+            const node = log.match(/Node (\d+)/)[1];
+            const parentBlockMatch = log.match(/extending from (\S+)/);
+            const parentBlock = parentBlockMatch ? parentBlockMatch[1] : null;
+
+            if (blockInfo) {
+                const blockId = blockInfo[1];
+                const height = blockInfo[2];
+                if (!blockStorage[height]) {
+                    blockStorage[height] = [];
+                }
+                blockStorage[height].push({ id: blockId, height: parseInt(height), node, type: 'block' });
+
+                if (parentBlock) {
+                    const sourceBlock = parentBlock === 'genesis' ? 'genesis' : parentBlock;
+                    blockLinks.push({
+                        source: sourceBlock,
+                        target: blockId
+                    });
+                }
+            }
+        } else if (log.includes('cast a vote for')) {
+            const voteInfo = log.match(/block (\S+) at vote height (\d+)/);
+            const voteInfo_0=log.match(/the Genesis block at vote height (\d+)/)
+
+            const node = log.match(/Node (\d+)/)[1];
+            const linkedVotes = log.match(/linked to the following nodes' vote.*\[(.*)\]/);
+            const vcMatch = log.match(/VC of this vote is:\{(.*)\}/);  // Extract VC info
+            if (voteInfo ||voteInfo_0) {
+                console.log(voteInfo_0);
+                console.log(voteInfo);
+                const blockId = voteInfo?voteInfo[1]:'genesis';
+                const height = voteInfo?voteInfo[2]:0;  // Get vote height
+                const vc = vcMatch ? JSON.parse(`{${vcMatch[1]}}`.replace(/'/g, '"')) : {};  // Parse VC
+
+                // Ensure voteStorage at height 0 (Genesis vote) is correctly stored
+                if (!voteStorage[height]) {
+                    voteStorage[height] = [];
+                }
+                voteStorage[height].push({
+                    id: `vote_${node}_${height}`,  // Vote ID based on node and height
+                    blockId,  // The block this vote is for (e.g., Genesis block)
+                    node,
+                    height: parseInt(height),
+                    linkedVotes: linkedVotes ? linkedVotes[1].split(',').map(v => v.trim()) : [],
+                    type: 'vote',
+                    vc  // Store VC information
+                });
+
+                // Create a vote-to-block link, ensure Genesis block is handled correctly
+                const sourceBlock = blockId === 'genesis' ? 'genesis' : blockId;
+                links.push({ source: `vote_${node}_${height}`, target: sourceBlock });
+
+                // Ensure links between votes and blocks are created correctly
+                if (linkedVotes && blockId !== 'genesis') {
+                    linkedVotes[1].split(',').forEach(v => {
+                        voteLinks.push({
+                            source: `vote_${v.trim()}_${height - 1}`,
+                            target: `vote_${node}_${height}`
+                        });
+                    });
+                }
+            }
+            console.log(voteStorage[0]);
+        } else if (log.includes('Consensus reached on block')) {
+            // Parse the consensus log format
+            const consensusBlockInfo = log.match(/block (\S+) at height (\d+)/);
+            const node = log.match(/Node (\d+)/)[1];
+            const supportsMatch = log.match(/got (\d+) supports/);
+            const secondSupportsMatch = log.match(/block (\S+) got (\d+) supports/);
+            const blockId = consensusBlockInfo[1];
+            const height = consensusBlockInfo[2];
+            const supports = supportsMatch ? supportsMatch[1] : null;
+
+            // Handle the second most supported block
+            let secondBlockId = "None";
+            let secondSupports = 0;
+
+            if (secondSupportsMatch) {
+                secondBlockId = secondSupportsMatch[1];
+                secondSupports = secondSupportsMatch[2];
+            }
+
+            if (consensusBlockInfo) {
+                consensusBlocks.add(blockId);
+                const consensusLog = {
+                    blockId,
+                    node,
+                    height,
+                    supports,
+                    secondBlockId,
+                    secondSupports,
+                    logText: log
+                };
+ //               consensusLogs.push(consensusLog);
+  //              const consensusList = document.getElementById('consensusList');
+   // consensusList.innerHTML = '';
+    //consensusLogs.forEach((consensusLog, index) => {
+     //   const listItem = document.createElement('li');
+      //  listItem.textContent = consensusLog.logText;
+       // listItem.dataset.blockId = consensusLog.blockId;
+        //listItem.dataset.index = index;
+        //consensusList.appendChild(listItem);
+  //  });
+            }
+        }
+
+        nodes = [...Object.values(blockStorage).flat(), ...Object.values(voteStorage).flat()];
+        drawGraph();
+    }
+}
+
+        function drawGraph() {
+            // Dynamically adjust width and height based on data size
+            const blockCount = Object.keys(blockStorage).length;
+            const voteCount = Object.keys(voteStorage).length;
+            const width = Math.max(3000,(Math.max(blockCount, voteCount) + 1) * 300);
+            const height = Math.max(5000,Math.max(blockCount, voteCount) * 500);
+    
+            const svg = d3.select('#graph')
+                .html('')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+    
+            const blockSpacingX = 300;
+            const voteSpacingX = 300;
+            const blockBaseY = 200;
+            const voteBaseY = 600;
+            const blockVerticalSpacing = 60;
+            const voteSpacingY = 50;
+    
+            const tooltip = d3.select('#tooltip');
+
+            svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .enter().append('g')
+                .attr('transform', (d, i) => {
+                    if (d.type === 'block') {
+                        const yOffset = blockStorage[d.height].indexOf(d) * blockVerticalSpacing;
+                        return `translate(${blockSpacingX * d.height}, ${blockBaseY + yOffset})`;
+                    } else {
+                        const yOffset = voteStorage[d.height].indexOf(d) * voteSpacingY;
+                        return `translate(${voteSpacingX * d.height + 200}, ${voteBaseY + yOffset})`;
+                    }
+                })
+                .attr('id', d => d.id);
+
+            linkCalculation(svg);
+
+            const nodeGroups = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .enter().append('g')
+                .attr('transform', (d, i) => {
+                    if (d.type === 'block') {
+                        const yOffset = blockStorage[d.height].indexOf(d) * blockVerticalSpacing;
+                        return `translate(${blockSpacingX * d.height}, ${blockBaseY + yOffset})`;
+                    } else {
+                        const yOffset = voteStorage[d.height].indexOf(d) * voteSpacingY;
+                        return `translate(${voteSpacingX * d.height + 200}, ${voteBaseY + yOffset})`;
+                    }
+                })
+                .attr('id', d => d.id);
+
+    
+            nodeGroups.filter(d => d.type === 'block')
+                .append('rect')
+                .attr('width', 60)
+                .attr('height', 40)
+                .attr('fill', d => consensusBlocks.has(d.id) ? 'green' : '#1f77b4')
+                .attr('stroke', '#000')
+                .attr('stroke-width', 1.5)
+                .on('mouseover', (event, d) => {
+                    showTooltip(event, `Block ID: ${d.id}`);
+                    highlightBlock(d.id);
+                    pause_=1;
+                })
+                .on('mouseout', () => {
+                    hideTooltip();
+                    resetHighlighting();
+                    pause_=0;
+                });
+    
+            nodeGroups.filter(d => d.type === 'vote')
+                .append('circle')
+                .attr('r', 20)
+                .attr('fill', '#ff7f0e')
+                .attr('stroke', '#000')
+                .attr('stroke-width', 1.5)
+                .on('mouseover', (event, d) => {
+                    showTooltip(event, `Vote ID: ${d.id}`);
+                    highlightVote(d.id,true);
+                    pause_=1;
+                })
+                .on('mouseout', () => {
+                    hideTooltip();
+                    resetHighlighting();
+                    pause_=0;
+                });
+    
+            nodeGroups.append('text')
+                .attr('dy', 5)
+                .attr('dx', d => d.type === 'block' ? 10 : -10)
+                .attr('y', d => d.type === 'block' ? 25 : 0)
+                .text(d => d.node);
+    
+            // Draw links after ensuring all nodes are rendered
+    
+            function showTooltip(event, text) {
+                tooltip.transition().duration(200).style('opacity', 1);
+                tooltip.html(text)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            }
+    
+            function hideTooltip() {
+                tooltip.transition().duration(200).style('opacity', 0);
+            }
+    
+            function resetHighlighting() {
+                svg.selectAll('rect').attr('fill', d => consensusBlocks.has(d.id) ? 'green' : '#1f77b4');
+                svg.selectAll('circle').attr('fill', '#ff7f0e');
+                svg.selectAll('line').attr('stroke', 'gray').attr('stroke-width', 1); // Reset lines
+                svg.selectAll('text.vcText').remove();
+
+            }
+            let highlightedIndex = null;
+    
+          // Recursive highlighting function for blocks
+
+// Recursive highlighting function for blocks (with asynchronous processing)
+function highlightBlock(blockId) {
+    const block = nodes.find(n => n.id === blockId);
+    if (block) {
+        svg.select(`#${blockId} rect`).attr('fill', 'purple');
+
+        // Directly access and update the line connecting this block to its parent
+        const parentLink = blockLinks.find(l => l.target === blockId);
+        if (parentLink && parentLink.source && parentLink.element) {
+            parentLink.element.attr('stroke', 'purple').attr('stroke-width', 3);  // Change line color and thickness
+
+            // Asynchronous recursion using setTimeout to avoid blocking
+            setTimeout(() => {
+                highlightBlock(parentLink.source);  // Recursively highlight the previous block
+            }, 0);  // Process next block in the next event loop
+        }
+    }
+}
+
+// Recursive highlighting function for votes (with asynchronous processing)
+function highlightVote(voteId, first_) {
+    const vote = nodes.find(n => n.id === voteId);
+    if (vote) {
+        svg.select(`#${voteId} circle`).attr('fill', 'red');
+
+        // Highlight vote-to-block link
+        if (!first_) {
+            const voteToBlockLink = links.find(l => l.source === voteId);  // Find the vote-to-block link
+            if (voteToBlockLink && voteToBlockLink.element) {
+                voteToBlockLink.element.attr('stroke', 'purple').attr('stroke-width', 2);  // Highlight the vote-to-block link
+            }
+        }
+
+        // Directly access and update the lines connected to this vote
+        const voteLinksToUpdate = voteLinks.filter(l => l.target === voteId);
+        voteLinksToUpdate.forEach(link => {
+            if (link.element) {
+                link.element.attr('stroke', 'red').attr('stroke-width', 3);  // Change line color and thickness
+            }
+        });
+
+        if (first_) {
+            const voteToBlockLink = links.find(l => l.source === voteId);  // Find the vote-to-block link
+            const vc_ignore = voteToBlockLink.target;
+
+            // Display VC values inside the corresponding block rectangles
+            Object.entries(vote.vc).forEach(([blockId, count]) => {
+                const blockGroup = svg.select(`#${blockId}`);  // Select the g group corresponding to the block
+                if (blockId != vc_ignore) {
+                    if (!blockGroup.empty()) {
+                        blockGroup.select('text.vcText').remove();  // Remove any previous VC text
+
+                        // Append VC text inside the block group
+                        d3.select(blockGroup.node())  // Use d3.select with .node() to get the actual DOM element
+                            .append('text')
+                            .attr('class', 'vcText')
+                            .attr('x', 70)  // Adjusted: Position text in the center of the rectangle
+                            .attr('y', 30)  // Adjusted: Position slightly lower to ensure visibility
+                            .attr('fill', 'red')
+                            .attr('text-anchor', 'middle')
+                            .style('font-size', '18px')  // Increased font size to ensure visibility
+                            .text(count)  // Show VC count
+                            .raise();  // Bring the text to the front of the block
+                    }
+                }
+            });
+        }
+
+        // Asynchronous recursion for linked votes
+        const linkedVoteIds = vote.linkedVotes.map(v => `vote_${v}_${vote.height - 1}`);
+        linkedVoteIds.forEach(linkedVoteId => {
+            const linkedVote = nodes.find(n => n.id === linkedVoteId);
+            if (linkedVote) {
+                setTimeout(() => {
+                    highlightVote(linkedVoteId, false);  // Recursively highlight linked votes
+                }, 0);  // Schedule the next vote highlighting in the next event loop
+            }
+        });
+
+        if (!first_) {
+            setTimeout(() => {
+                highlightBlock(vote.blockId);  // Highlight the block this vote links to
+            }, 0);  // Schedule block highlighting after vote highlighting
+        }
+    }
+}
+
+        }
+    
+        function getXYFromTransform(transform) {
+            const translateValues = transform.match(/translate\(([^,]+),([^)]+)\)/);
+            return {
+                x: parseFloat(translateValues[1]),
+                y: parseFloat(translateValues[2])
+            };
+        }
+    
+        function linkCalculation(svg) {
+    // Drawing block-to-block links
+    blockLinks.forEach(link => {
+        const sourceGroup = d3.select(`#${link.source}`).node();
+        const targetGroup = d3.select(`#${link.target}`).node();
+
+        if (!sourceGroup || !targetGroup) {
+            // console.error('Could not find source or target group for block:', link.source, link.target);
+            return;
+        }
+
+        const sourcePosition = getXYFromTransform(sourceGroup.getAttribute('transform'));
+        const targetPosition = getXYFromTransform(targetGroup.getAttribute('transform'));
+
+        // Create the line and store its reference in the link object
+        link.element = svg.append('line')
+            .attr('x1', sourcePosition.x + 5)
+            .attr('y1', sourcePosition.y + 5)
+            .attr('x2', targetPosition.x + 5)
+            .attr('y2', targetPosition.y + 5)
+            .attr('stroke', 'gray')
+            .attr('stroke-width', 1)
+            .attr('class', 'blockLink')
+            .attr('data-source', link.source)
+            .attr('data-target', link.target);
+    });
+
+    // Drawing vote-to-vote links
+    voteLinks.forEach(link => {
+        const sourceGroup = d3.select(`#${link.source}`).node();
+        const targetGroup = d3.select(`#${link.target}`).node();
+
+        if (!sourceGroup || !targetGroup) {
+            // console.error('Could not find source or target group for vote:', link.source, link.target);
+            return;
+        }
+
+        const sourcePosition = getXYFromTransform(sourceGroup.getAttribute('transform'));
+        const targetPosition = getXYFromTransform(targetGroup.getAttribute('transform'));
+
+        // Create the line and store its reference in the link object
+        link.element = svg.append('line')
+            .attr('x1', sourcePosition.x + 5)
+            .attr('y1', sourcePosition.y + 5)
+            .attr('x2', targetPosition.x + 5)
+            .attr('y2', targetPosition.y + 5)
+            .attr('stroke', 'gray')
+            .attr('stroke-width', 1)
+            .attr('class', 'voteLink')
+            .attr('data-source', link.source)
+            .attr('data-target', link.target);
+    });
+
+    // Drawing vote-to-block links (including votes for Genesis block)
+    links.forEach(link => {
+        const sourceGroup = d3.select(`#${link.source}`).node();
+        const targetGroup = d3.select(`#${link.target}`).node();
+
+        if (!sourceGroup || !targetGroup) {
+            // console.error('Could not find source or target group:', link.source, link.target);
+            return;
+        }
+
+        const sourcePosition = getXYFromTransform(sourceGroup.getAttribute('transform'));
+        const targetPosition = getXYFromTransform(targetGroup.getAttribute('transform'));
+
+        // Create the line and store its reference in the link object
+        link.element = svg.append('line')
+            .attr('x1', sourcePosition.x + 5)
+            .attr('y1', sourcePosition.y + 5)
+            .attr('x2', targetPosition.x + 30)
+            .attr('y2', targetPosition.y + 20)
+            .attr('stroke', 'gray')
+            .attr('stroke-width', 1)
+            .attr('class', 'voteToBlockLink')
+            .attr('data-source', link.source)
+            .attr('data-target', link.target);
+    });
+}
+
+    </script>
+    
+    
+</body>
+</html>
