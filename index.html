@@ -291,7 +291,18 @@ document.getElementById('fileInput').addEventListener('change', handleFileUpload
             if (intervalId) {
                 clearInterval(intervalId);
             }
-    
+           links = [];
+           blockLinks = [];
+           voteLinks = [];
+           blockStorage = {};
+           voteStorage = {};
+           nodes = [];
+           logIndex = 0;
+           logs = [];
+           intervalId = null;
+           consensusBlocks = new Set();
+           pause_ =0;
+           consensusLogs = [];
             // Add genesis block before replay starts
             addGenesisBlock();
     
