@@ -17,7 +17,7 @@ To simulate the voting process of our protocol, you can run the `vote.py` script
 **Steps:**
 1. Run the Python simulation.
    ```bash
-   python3 vote.py
+   python3 vote.py >output.txt
    ```
 3. The simulation will output logs describing the blocks proposed and the votes cast at each round.
 
