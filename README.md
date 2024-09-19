@@ -16,7 +16,7 @@ The nodes will vote as fast as they can (when collected N-f votes from the last 
  **How to Use**
 
  **Run the Simulation**
-To simulate the voting process of our protocol, you can run the `vote.py` script. This will set up a toy example of a network of `N=7` nodes, with a fault tolerance `f=2`, running our protocol. No time-bounds were set for the voting process in asynchronous environments and you can visualize the consensus process.
+To simulate the voting process of our protocol, you can run the `vote.py` script. This will set up a toy example of a network of `N=7` nodes, with a fault tolerance `f=2`, running our protocol. No time-bounds were set for the voting process in asynchronous environments and you can visualize the consensus process. In this process, all 7 nodes behave normally. This is because if adversary cast non-compliant votes, their votes are not processed, resulting in 5 active honest nodes and two silent adversaries. Since each node only votes after receiving $N-f$ votes from the previous height, having only 5 active honest nodes leads to very fast branch alignment (since each one will have the same view after one voting round), making it less interesting for illustration.
 
 **Steps:**
 1. Run the Python simulation.
