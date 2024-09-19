@@ -1,17 +1,17 @@
-# **Validated Strong Consensus Protocol Small Toy Experiment and Visualization**
+**Validated Strong Consensus Protocol Small Toy Experiment and Visualization**
 
 This repository contains a simplified Python experiment and web-based visualization tool for the Validated Strong Consensus protocol. 
 The logics for voting and consensus-reaching are exactly the same as the code we used for experiment, however other features are simplified for illustration purposes.
 
-## **Contents**
+ **Contents**
 - `vote.py`: The simulation script for the consensus protocol.
 - `index.html`: The web-based visualization of the consensus process.
 - `image.png`: A screenshot of the visualized output for an example consensus scenario.
 - `README.md`: This document.
 
-## **How to Use**
+ **How to Use**
 
-### **Run the Simulation**
+ **Run the Simulation**
 To simulate the voting process of our protocol, you can run the `vote.py` script. This will set up a toy example of a network of `N=7` nodes, with a fault tolerance `f=2`, running our protocol. No time-bounds were set for the voting process in asynchronous environments and you can visualize the consensus process.
 
 **Steps:**
@@ -21,7 +21,7 @@ To simulate the voting process of our protocol, you can run the `vote.py` script
    ```
 3. The simulation will output logs describing the blocks proposed and the votes cast at each round.
 
-### **Visualize the Consensus Process**
+ **Visualize the Consensus Process**
 After running the simulation, you can visualize the consensus process using the web-based tool included in this repository.
 
 1. Open `index.html` in a web browser.
@@ -31,10 +31,10 @@ After running the simulation, you can visualize the consensus process using the 
    - Hover over votes to see details about the vote's ID and the node that cast it.
 4. Adjust the input to replay different scenarios by modifying the log data.
 
-### **Example**
+ **Example**
 To explore the simulation and its visual representation, run the example provided. The default scenario will demonstrate how nodes in the network propose blocks, cast votes, and eventually reach consensus through VSC.
 
-### **Explanation of the Visualization (Figure)**
+ **Explanation of the Visualization (Figure)**
 The provided screenshot (`image.png`) demonstrates the output of the consensus visualization tool.
 
 1. **Blocks** (represented by squares) are proposed at each height by the nodes.
