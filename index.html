@@ -234,6 +234,9 @@
         </textarea>
     <input type="file" id="fileInput" accept=".txt" />
     <button onclick="startReplay()">Start Replay</button>
+    <div>
+    <progress id="replayProgress" value="0" max="100" style="width: 100%;"></progress>
+</div>
     <h2>Graph (Green block is consensually accepted block.)</h2> Stop until 10 blocks are consensually accepted. Hover the votes to see vote graph and vote counter.
     <div id="graph"></div>
     <div class="tooltip" id="tooltip" style="opacity: 0;"></div>
@@ -296,14 +299,17 @@ document.getElementById('fileInput').addEventListener('change', handleFileUpload
         }
     
         function processLog() {
-    if (logIndex >= logs.length) {
+if (logIndex >= logs.length) {
         clearInterval(intervalId);
+        document.getElementById('replayProgress').value = 100; // Set progress to 100% when done
         return;
     }
 
     if (pause_ == 0) {
         const log = logs[logIndex];
         logIndex++;
+           const progress = (logIndex / logs.length) * 100;
+        document.getElementById('replayProgress').value = progress;
 
         if (log.includes('proposed block')) {
             const blockInfo = log.match(/block (\S+) at consensus height (\d+)/);
