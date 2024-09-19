@@ -36,7 +36,7 @@ After running the simulation, you can visualize the consensus process using the 
 4. Adjust the input to replay different scenarios by modifying the log data.
 
  **Example**
-To explore the simulation and its visual representation, run the example provided. The default scenario will demonstrate how nodes in the network propose blocks, cast votes, and eventually reach consensus through VSC.
+To explore the simulation and its visual representation, run the example provided. The default scenario will demonstrate how nodes in the network propose blocks, cast votes, and eventually reach consensus through Validated Strong BFT Consensus Protocol.
 
  **Explanation of the Visualization (Figure)**
 The provided screenshot (`image.png`) demonstrates the output of the consensus visualization tool.
