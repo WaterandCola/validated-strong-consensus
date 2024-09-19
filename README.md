@@ -10,6 +10,7 @@ The nodes will vote as fast as they can (when collected N-f votes from the last 
 - `vote.py`: The simulation script for the consensus protocol.
 - `index.html`: The web-based visualization of the consensus process.
 - `image.png`: A screenshot of the visualized output for an example consensus scenario.
+- `Code Listing 1.ipynb`: Code Listing 1 and how Figure 4 of the paper was generated.
 - `README.md`: This document.
 
  **How to Use**
