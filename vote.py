@@ -6,42 +6,38 @@ import random
 import queue
 import uuid
 import os
+
 # Serialization and Deserialization Functions
 
 def serialize_block(block):
-    block_data = {
-        'block_hash': block.block_hash,
-        'height': block.height,
-        'previous_block_hash': block.previous_block_hash,
-        'proposer_id': block.proposer_id
-    }
-    return json.dumps(block_data)
+    return json.dumps(block.__dict__)
 
 def deserialize_block(block_json):
-    block_data = json.loads(block_json)
-    return Block(
-        block_hash=block_data['block_hash'],
-        height=block_data['height'],
-        previous_block_hash=block_data['previous_block_hash'],
-        proposer_id=block_data['proposer_id']
+    data = json.loads(block_json)
+    block = Block(
+        block_hash=data['block_hash'],
+        height=data['height'],
+        previous_block_hash=data['previous_block_hash'],
+        proposer_id=data['proposer_id']
     )
+    return block
 
 def serialize_vote(vote):
-    vote_data = {
+    vote_dict = {
         'height': vote.height,
         'block_hash': vote.block_hash,
         'voter': vote.voter,
         'previous_vote_hashes': vote.previous_vote_hashes,
     }
-    return json.dumps(vote_data)
+    return json.dumps(vote_dict)
 
 def deserialize_vote(vote_json):
-    vote_data = json.loads(vote_json)
+    data = json.loads(vote_json)
     vote = Vote(
-        height=vote_data['height'],
-        block_hash=vote_data['block_hash'],
-        voter=vote_data['voter'],
-        previous_vote_hashes=vote_data['previous_vote_hashes']
+        height=data['height'],
+        block_hash=data['block_hash'],
+        voter=data['voter'],
+        previous_vote_hashes=data['previous_vote_hashes']
     )
     return vote
 
@@ -126,7 +122,7 @@ class Vote:
 
         # Process votes from height 1 upwards
         for height in sorted(height_to_votes.keys()):
-            if height ==self.height: # should not count itself.
+            if height == self.height:  # should not count itself.
                 continue
             for vote in height_to_votes[height]:
                 voter = vote.voter
@@ -277,7 +273,7 @@ class Vote:
 # Node Class
 
 class Node:
-    def __init__(self, node_id, num_nodes, f, genesis_block, delta_bi, host='localhost', base_port=8000, retransmission_interval=1.0, max_retransmissions=5, message_loss_probability=0.1):
+    def __init__(self, node_id, num_nodes, f, genesis_block, delta_bi, host='localhost', base_port=8000):
         self.node_id = node_id
         self.num_nodes = num_nodes
         self.f = f
@@ -290,7 +286,7 @@ class Node:
         self.genesis_block = genesis_block
         self.most_recent_accepted = genesis_block.block_hash
         self.latest_vote_height = -1
-        self.vote_height =-1
+        self.vote_height = -1
         self.peers = {}
         self.host = host
         self.port = base_port + node_id
@@ -298,15 +294,10 @@ class Node:
         self.stop_event = threading.Event()
         self.message_queue = queue.Queue()
         self.lock = threading.Lock()
-        self.outgoing_messages = {}  # For retransmissions
-        self.pending_votes = []      # Votes pending due to missing data
-        self.retransmission_interval = retransmission_interval
-        self.max_retransmissions = max_retransmissions
-        self.message_loss_probability = message_loss_probability
-        self.request_list={}
+        self.pending_votes = []  # Votes pending due to missing data
         self.start_server()
-        threading.Thread(target=self.retransmission_handler, daemon=True).start()
         threading.Thread(target=self.process_pending_votes_thread, daemon=True).start()
+
     def start_working(self):
         threading.Thread(target=self.voting, daemon=True).start()
         threading.Thread(target=self.proposing_block, daemon=True).start()
@@ -329,21 +320,20 @@ class Node:
             except socket.timeout:
                 continue
             except Exception as e:
-                print(f"[{time.time()}]",f"Node {self.node_id} accept_connections exception: {e}")
+                print(f"[{time.time()}]", f"Node {self.node_id} accept_connections exception: {e}")
                 break
 
     def handle_connection(self, conn):
         """Handle incoming messages from a peer."""
         with conn:
+            data = b''
             try:
-                data = conn.recv(4096)
-                while data:
-                    messages = data.decode().split('\n')
-                    for msg in messages:
-                        if msg:
-                            message = json.loads(msg)
-                            self.message_queue.put(message)
+                while not self.stop_event.is_set():
                     data = conn.recv(4096)
+                    if not data:
+                        break
+                    message = json.loads(data.decode())
+                    self.message_queue.put(message)
             except Exception as e:
                 pass
 
@@ -352,80 +342,25 @@ class Node:
         while not self.stop_event.is_set():
             if not self.message_queue.empty():
                 message = self.message_queue.get()
-                self.process_message(message)
+                threading.Thread(target=self.process_message, args=(message,), daemon=True).start()
             else:
                 time.sleep(0.001)
 
     def send_message(self, node_id, message_type, content):
-        """Send a message to another node with retransmission logic."""
+        """Send a message to another node."""
         if node_id not in self.peers:
             return
         host, port = self.peers[node_id]
-        message_id = str(uuid.uuid4())  # Unique message ID
         message = {
             'type': message_type,
             'content': content,
-            'sender_id': self.node_id,
-            'message_id': message_id
+            'sender_id': self.node_id
         }
-        serialized_message = json.dumps(message) + '\n'
-        self.outgoing_messages[message_id] = {
-            'message': serialized_message,
-            'peer_id': node_id,
-            'attempts': 0,
-            'timestamp': time.time()
-        }
-        self.attempt_send_message(message_id)
-
-    def attempt_send_message(self, message_id):
-        """Attempt to send a message, handling retransmissions."""
-        message_info = self.outgoing_messages.get(message_id)
-        if not message_info:
-            return
-        peer_id = message_info['peer_id']
-        host, port = self.peers[peer_id]
-        try:
-            # Simulate message loss
-            if random.random() < self.message_loss_probability:
-                # Message is lost; do not send
-                return
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(1.0)
-                s.connect((host, port))
-                s.sendall(message_info['message'].encode())
-            message_info['attempts'] += 1
-            message_info['timestamp'] = time.time()
-        except Exception as e:
-            # Message failed to send; will retry
-            pass
-
-    def retransmission_handler(self):
-        """Background thread to handle message retransmissions."""
-        while not self.stop_event.is_set():
-            current_time = time.time()
-            for message_id, message_info in list(self.outgoing_messages.items()):
-                if current_time - message_info['timestamp'] > self.retransmission_interval:
-                    if message_info['attempts'] < self.max_retransmissions:
-                        self.attempt_send_message(message_id)
-                    else:
-                        # Exceeded max retransmissions; give up
-                        try:
-                            del self.outgoing_messages[message_id]
-                        except:
-                            pass
-            time.sleep(0.1)
-
-    def send_acknowledgment(self, node_id, ack_message):
-        """Send an acknowledgment to a peer."""
-        if node_id not in self.peers:
-            return
-        host, port = self.peers[node_id]
-        serialized_ack = json.dumps(ack_message) + '\n'
+        serialized_message = json.dumps(message).encode()
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(1.0)
                 s.connect((host, port))
-                s.sendall(serialized_ack.encode())
+                s.sendall(serialized_message)
         except Exception as e:
             pass
 
@@ -434,34 +369,14 @@ class Node:
         message_type = message['type']
         content = message['content']
         sender_id = message['sender_id']
-        message_id = message.get('message_id')
 
-        # Send acknowledgment
-        if message_id:
-            ack_message = {
-                'type': 'ack',
-                'content': {'message_id': message_id},
-                'sender_id': self.node_id
-            }
-            self.send_acknowledgment(sender_id, ack_message)
-
-        if message_type == 'ack':
-            acked_message_id = content['message_id']
-            if acked_message_id in self.outgoing_messages:
-                del self.outgoing_messages[acked_message_id]
-        elif message_type == 'block':
-            block = deserialize_block(content)
-            try:
-                del self.request_list[str(sender_id)+'request_block'+str(block.block_hash)]
-            except  Exception as e:
-                pass
+        if message_type == 'block':
+            block_json = content
+            block = deserialize_block(block_json)
             self.receive_block(block)
         elif message_type == 'vote':
-            vote = deserialize_vote(content)
-            try:
-                del self.request_list[str(sender_id)+'request_vote'+str(vote.get_vote_hash())]
-            except Exception as e:
-                pass
+            vote_json = content
+            vote = deserialize_vote(vote_json)
             self.receive_vote(vote)
         elif message_type == 'request_block':
             block_hash = content['block_hash']
@@ -470,7 +385,7 @@ class Node:
             vote_hash = content['vote_hash']
             self.handle_vote_request(sender_id, vote_hash)
         else:
-            print(f"[{time.time()}]",f"Node {self.node_id} received unknown message type: {message_type}")
+            print(f"[{time.time()}]", f"Node {self.node_id} received unknown message type: {message_type}")
 
     def receive_block(self, block):
         """Receive a block proposed by another node."""
@@ -478,8 +393,6 @@ class Node:
             if block.block_hash not in self.block_hash_map:
                 self.block_hash_map[block.block_hash] = block
                 self.blockchain.setdefault(block.height, []).append(block)
-                #print(f"[{time.time()}]",f"Node {self.node_id} received block {block.block_hash} at height {block.height} from node {block.proposer_id}.")
-                # After receiving a block, check if any pending votes can be processed
             else:
                 pass  # Block already received
 
@@ -493,10 +406,10 @@ class Node:
                         self.store_vote(vote)
                         self.received_votes.append(vote)
                         self.latest_vote_height = max(self.latest_vote_height, vote.height)
-                        #print(f"[{time.time()}]",f"Node {self.node_id} received compliant vote for block {vote.block_hash} at height {vote.height} from node {vote.voter}.")
-                        # After receiving a vote, check if any pending votes can be processed
                     else:
-                        print(f"[{time.time()}]",f"Node {self.node_id} ignored non-compliant vote from node {vote.voter}.")
+                        pass  # Non-compliant vote
+            else:
+                pass  # Missing data, vote added to pending_votes
 
     def reconstruct_vote_data(self, vote):
         """Reconstruct the block and previous votes referenced by the vote."""
@@ -507,30 +420,27 @@ class Node:
             vote.block = self.block_hash_map[vote.block_hash]
         else:
             # Request the block from peers
-            self.request_block(vote.block_hash,vote.voter)
+            self.request_block(vote.block_hash)
             missing_data = True
 
         # Reconstruct previous votes
-        k=[]
         for prev_vote_hash in vote.previous_vote_hashes:
             prev_vote = self.vote_hash_map.get(prev_vote_hash)
             if prev_vote:
-                k.append(prev_vote)
+                vote.previous_votes.append(prev_vote)
             else:
                 # Request the previous vote from peers
-                self.request_vote(prev_vote_hash,vote.voter)
-                k=[]
+                self.request_vote(prev_vote_hash)
                 missing_data = True
 
         if missing_data:
             # Store the vote to be processed later
-            self.pending_votes.append(vote)
+            if vote not in self.pending_votes:
+                self.pending_votes.append(vote)
         else:
             # Set block hash map reference
             vote.block_hash_map = self.block_hash_map
-            vote.previous_votes=k
         return not missing_data
-        
 
     def process_pending_votes_thread(self):
         """Background thread to process pending votes."""
@@ -545,68 +455,38 @@ class Node:
             # Check if all required data is available
             if vote.block_hash not in self.block_hash_map:
                 can_process = False
-                self.request_block(vote.block_hash,vote.voter)
+                self.request_block(vote.block_hash)
             for prev_vote_hash in vote.previous_vote_hashes:
                 if prev_vote_hash not in self.vote_hash_map:
                     can_process = False
-                    self.request_vote(prev_vote_hash,vote.voter)
+                    self.request_vote(prev_vote_hash)
             if can_process:
                 self.pending_votes.remove(vote)
                 self.receive_vote(vote)  # Now we can process the vote
 
-    def request_block(self, block_hash,voter):
-        """Request a block from peers."""
-        if random.randint(0,50)==0:
-            for peer_id in self.peers:
-                if str(peer_id)+'request_block'+str(block_hash) in self.request_list:
-                    if time.time()-self.request_list[str(peer_id)+'request_block'+str(block_hash)]>5:
-                        self.send_message(peer_id, 'request_block', {'block_hash': block_hash})
-                        self.request_list[str(peer_id)+'request_block'+str(block_hash)]=time.time()
-                else:
-                    self.request_list[str(peer_id)+'request_block'+str(block_hash)]=time.time()
-                    self.send_message(peer_id, 'request_block', {'block_hash': block_hash})
-        else:
-            peer_id= voter
-            if str(peer_id)+'request_block'+str(block_hash) in self.request_list:
-                if time.time()-self.request_list[str(peer_id)+'request_block'+str(block_hash)]>5:
-                    self.send_message(peer_id, 'request_block', {'block_hash': block_hash})
-                    self.request_list[str(peer_id)+'request_block'+str(block_hash)]=time.time()
-            else:
-                self.request_list[str(peer_id)+'request_block'+str(block_hash)]=time.time()
-                self.send_message(peer_id, 'request_block', {'block_hash': block_hash})
+    def request_block(self, block_hash):
+        """Broadcast a block request to all peers."""
+        for peer_id in self.peers:
+            self.send_message(peer_id, 'request_block', {'block_hash': block_hash})
 
-    def request_vote(self, vote_hash,voter):
-        """Request a vote from peers."""
-        if random.randint(0,50)==0:
-            for peer_id in self.peers:
-                if str(peer_id)+'request_vote'+str(vote_hash) in self.request_list:
-                    if time.time()-self.request_list[str(peer_id)+'request_vote'+str(vote_hash)]>5:
-                        self.send_message(peer_id, 'request_vote', {'vote_hash': vote_hash})
-                        self.request_list[str(peer_id)+'request_vote'+str(vote_hash)]=time.time()
-                else:
-                    self.request_list[str(peer_id)+'request_vote'+str(vote_hash)]=time.time()
-                    self.send_message(peer_id, 'request_vote', {'vote_hash': vote_hash})
-        else:
-            peer_id= voter
-            if (str(peer_id)+'request_vote'+str(vote_hash)) in self.request_list:
-                if time.time()-self.request_list[str(peer_id)+'request_vote'+str(vote_hash)]>5:
-                    self.send_message(peer_id, 'request_vote', {'vote_hash': vote_hash})
-                    self.request_list[str(peer_id)+'request_vote'+str(vote_hash)]=time.time()
-            else:
-                self.request_list[str(peer_id)+'request_vote'+str(vote_hash)]=time.time()
-                self.send_message(peer_id, 'request_vote', {'vote_hash': vote_hash})
+    def request_vote(self, vote_hash):
+        """Broadcast a vote request to all peers."""
+        for peer_id in self.peers:
+            self.send_message(peer_id, 'request_vote', {'vote_hash': vote_hash})
 
     def handle_block_request(self, requester_id, block_hash):
         """Send the requested block to the requester."""
         block = self.block_hash_map.get(block_hash)
         if block:
-            self.send_message(requester_id, 'block', serialize_block(block))
+            block_json = serialize_block(block)
+            self.send_message(requester_id, 'block', block_json)
 
     def handle_vote_request(self, requester_id, vote_hash):
         """Send the requested vote to the requester."""
         vote = self.vote_hash_map.get(vote_hash)
         if vote:
-            self.send_message(requester_id, 'vote', serialize_vote(vote))
+            vote_json = serialize_vote(vote)
+            self.send_message(requester_id, 'vote', vote_json)
 
     def store_vote(self, vote):
         self.vote_hash_map[vote.get_vote_hash()] = vote
@@ -635,14 +515,14 @@ class Node:
                     latest_block_candidate = self.genesis_block
             else:
                 latest_block_candidate = self.genesis_block
-            if latest_block_candidate.height+1 in self.blockchain:
-                for  other_block in self.blockchain[latest_block_candidate.height+1]:
-                    if other_block.previous_block_hash ==latest_block_candidate.block_hash:
-                        return None # someone already proposed a block of the same height at this branch.
+            if latest_block_candidate.height + 1 in self.blockchain:
+                for other_block in self.blockchain[latest_block_candidate.height + 1]:
+                    if other_block.previous_block_hash == latest_block_candidate.block_hash:
+                        return None  # Someone already proposed a block of the same height at this branch.
             new_block = self.create_block(latest_block_candidate)
             self.blockchain.setdefault(new_block.height, []).append(new_block)
             self.block_hash_map[new_block.block_hash] = new_block
-            print(f"[{time.time()}]",f"Node {self.node_id} proposed block {new_block.block_hash} at consensus height {new_block.height} extending from {latest_block_candidate.block_hash}")
+            print(f"[{time.time()}]", f"Node {self.node_id} proposed block {new_block.block_hash} at consensus height {new_block.height} extending from {latest_block_candidate.block_hash}")
             # Broadcast the block to all peers
             block_json = serialize_block(new_block)
             for peer_id in self.peers:
@@ -650,46 +530,18 @@ class Node:
             return new_block  # Return block to broadcast to other nodes
         return None
 
-    def adversary_propose_block(self):
-        """Adversary randomly proposes a block, without considering leader rules."""
-        # Randomly select a block from the entire blockchain to extend
-        with self.lock:
-            all_blocks = [block for height_blocks in self.blockchain.values() for block in height_blocks]
-            if not all_blocks:
-                # If there are no blocks (other than the genesis block), extend from the genesis block
-                latest_block_candidate = self.genesis_block
-            else:
-                # Choose a random block from the blockchain to extend from
-                latest_block_candidate = random.choice(all_blocks)
-            # Create a new block extending from the randomly chosen block
-            new_block = self.create_block(latest_block_candidate)
-            # Add the new block to the blockchain
-            self.blockchain.setdefault(new_block.height, []).append(new_block)
-            self.block_hash_map[new_block.block_hash] = new_block
-            print(f"[{time.time()}]",f"Adversary node {self.node_id} proposed block {new_block.block_hash} at consensus height {new_block.height}")
-            # Adversary sends to a subset of peers
-            block_json = serialize_block(new_block)
-            num_peers = len(self.peers)
-            if num_peers > 0:
-                sample_size = random.randint(0, num_peers)
-                adversary_subset = random.sample(list(self.peers.keys()), sample_size)
-            else:
-                adversary_subset = []
-            for peer_id in adversary_subset:
-                self.send_message(peer_id, 'block', block_json)
-            return new_block  # Return block to broadcast to other nodes
-    def voting (self):
+    def voting(self):
         while not self.stop_event.is_set():
             self.cast_vote()
             time.sleep(0.5)
-    
-    def proposing_block (self):
-        last_done=0
+
+    def proposing_block(self):
+        last_done = 0
         while not self.stop_event.is_set():
-            te=time.time() // self.delta_bi
-            if te %self.num_nodes==self.node_id and last_done!=te:
+            te = time.time() // self.delta_bi
+            if te % self.num_nodes == self.node_id and last_done != te:
                 self.propose_block()
-                last_done=te
+                last_done = te
 
     def cast_vote(self):
         """
@@ -703,7 +555,7 @@ class Node:
             genesis_vote.block = self.genesis_block
             genesis_vote.block_hash_map = self.block_hash_map
             self.vote_height = vote_height
-            print(f"[{time.time()}]",f"Node {self.node_id} cast a vote for the Genesis block at vote height 0.")
+            print(f"[{time.time()}]", f"Node {self.node_id} cast a vote for the Genesis block at vote height 0.")
             # Broadcast the vote
             vote_json = serialize_vote(genesis_vote)
             for peer_id in self.peers:
@@ -730,19 +582,18 @@ class Node:
                 self.store_vote(new_vote)
                 self.received_votes.append(new_vote)
                 self.vote_height = vote_height
-                 # Broadcast the vote
+                # Broadcast the vote
                 vote_json = serialize_vote(new_vote)
                 for peer_id in self.peers:
                     self.send_message(peer_id, 'vote', vote_json)
                 new_vote.build_vote_graph()
                 new_vote.calculate_vote_count()
-                print(f"[{time.time()}]",f"Node {self.node_id} cast a vote for block {block_to_vote_for.block_hash} at vote height {vote_height}. This vote is linked to the following nodes' vote at vote height {vote_height-1}:",[item.voter for item in new_vote.previous_votes], f"The VC of this vote is:{new_vote.VC}")
+                print(f"[{time.time()}]", f"Node {self.node_id} cast a vote for block {block_to_vote_for.block_hash} at vote height {vote_height}. This vote is linked to the following nodes' vote at vote height {vote_height - 1}:", [item.voter for item in new_vote.previous_votes], f"The VC of this vote is:{new_vote.VC}")
                 return new_vote  # Return vote to broadcast to other nodes
             else:
-                print(f"[{time.time()}]",f"Node {self.node_id} is waiting for more compliant votes at vote height {previous_vote_height}.")
+                print(f"[{time.time()}]", f"Node {self.node_id} is waiting for more compliant votes at vote height {previous_vote_height}.")
         else:
             pass
-            #print(f"[{time.time()}]",f"Node {self.node_id} is waiting for enough information to vote at height {vote_height}.")
         return None
 
     def find_block_to_vote_for(self, vote_height):
@@ -816,80 +667,45 @@ class Node:
         most_supported_blocks = most_supported_blocks_at_each_level.get(consensus_height, [])
         return [random.choice(most_supported_blocks)] if most_supported_blocks else []
 
-    def get_second_most_supported_blocks(self, starting_height, consensus_height):
+    def get_top_two_supported_branches(self, starting_height,consensus_height, G):
         """
-        Determine one block at the given consensus height that is part of the second most supported branch.
-        If there are multiple branches with the same vote count, randomly select one, provided that these branches have blocks at consensus_height.
+        Find the most supported and second most supported branches starting from a given starting height.
+        The most supported branch has the highest vote count at the starting height, and at each subsequent height,
+        the ancestors in the chain also need to have the highest vote count among their siblings. The second-most branch
+        has the second-highest vote count.
         """
-        # Step 1: Filter compliant votes at the given consensus height
-        compliant_votes = [vote for vote in self.received_votes if vote.block.height == consensus_height and vote.is_compliant_vote()]
+        # Step 1: Filter compliant votes at the given starting height
+        compliant_votes = [vote for vote in G if vote.block.height == consensus_height and vote.is_compliant_vote()]
         if len(compliant_votes) < self.N_f_votes_required:
-            return []
+            return None, None, None,None
 
         # Step 2: Create the virtual vote using compliant votes
         virtual_vote = self.create_virtual_vote(compliant_votes)
 
-        # Step 3: Track both most and second most supported blocks at each level
-        most_supported_blocks_at_each_level = {}
-        second_most_supported_blocks_at_each_level = {}
-        highest_vote_count_at_height = {}
-        second_highest_vote_count_at_height = {}
-
-        # Step 4: Find the blocks with the most and second most support at starting_height
+        # Step 3: Sort blocks in VC by vote count for the given starting height
+        block_support_at_starting_height = []
         for block_hash, vote_count in virtual_vote.VC.items():
-            block = self.block_hash_map.get(block_hash)
-            if block.height == starting_height:
-                if block.height not in highest_vote_count_at_height or vote_count > highest_vote_count_at_height[block.height]:
-                    second_highest_vote_count_at_height[block.height] = highest_vote_count_at_height.get(block.height, 0)
-                    second_most_supported_blocks_at_each_level[block.height] = most_supported_blocks_at_each_level.get(block.height, [])
+            block = self.get_block_by_hash(block_hash)
+            if block and block.height == starting_height:
+                block_support_at_starting_height.append((block_hash, vote_count))
+        
+        # Sort the blocks by vote count at the starting height in descending order
+        block_support_at_starting_height.sort(key=lambda x: x[1], reverse=True)
+        if len(block_support_at_starting_height) == 1:
+            return block_support_at_starting_height[0][0], None, block_support_at_starting_height[0][1], 0
 
-                    highest_vote_count_at_height[block.height] = vote_count
-                    most_supported_blocks_at_each_level[block.height] = [block]
-                elif vote_count == highest_vote_count_at_height[block.height]:
-                    most_supported_blocks_at_each_level[block.height].append(block)
-                elif vote_count > second_highest_vote_count_at_height[block.height]:
-                    second_highest_vote_count_at_height[block.height] = vote_count
-                    second_most_supported_blocks_at_each_level[block.height] = [block]
-                elif vote_count == second_highest_vote_count_at_height[block.height]:
-                    second_most_supported_blocks_at_each_level[block.height].append(block)
+        if len(block_support_at_starting_height) == 0:
+            return None, 0, 0, 0
+        return block_support_at_starting_height[0][0], block_support_at_starting_height[1][0],block_support_at_starting_height[0][1], block_support_at_starting_height[1][1]
 
-        if starting_height == consensus_height:
-            second_most_supported_blocks = second_most_supported_blocks_at_each_level.get(starting_height, [])
-            return [random.choice(second_most_supported_blocks)] if second_most_supported_blocks else []
+    def get_block_by_hash(self, block_hash):
+        return self.block_hash_map.get(block_hash, None)
 
-        # Step 5: Trace down the second most supported branches by checking ancestors at each height
-        for h in range(starting_height + 1, consensus_height + 1):
-            most_supported_blocks_at_each_level[h] = []
-            second_most_supported_blocks_at_each_level[h] = []
-            highest_vote_count_at_height[h] = 0
-            second_highest_vote_count_at_height[h] = 0
 
-            # For each block in the previous level, find its valid children
-            for parent_block in second_most_supported_blocks_at_each_level[h - 1]:
-                for block_hash, vote_count in virtual_vote.VC.items():
-                    block = self.block_hash_map.get(block_hash)
-                    if block and block.height == h and block.previous_block_hash == parent_block.block_hash:
-                        if vote_count > highest_vote_count_at_height[h]:
-                            second_highest_vote_count_at_height[h] = highest_vote_count_at_height[h]
-                            second_most_supported_blocks_at_each_level[h] = most_supported_blocks_at_each_level.get(h, [])
-
-                            highest_vote_count_at_height[h] = vote_count
-                            most_supported_blocks_at_each_level[h] = [block]
-                        elif vote_count == highest_vote_count_at_height[h]:
-                            most_supported_blocks_at_each_level[h].append(block)
-                        elif vote_count > second_highest_vote_count_at_height[h]:
-                            second_highest_vote_count_at_height[h] = vote_count
-                            second_most_supported_blocks_at_each_level[h] = [block]
-                        elif vote_count == second_highest_vote_count_at_height[h]:
-                            second_most_supported_blocks_at_each_level[h].append(block)
-
-            # If no valid blocks are found at this level, the second most supported branch is incomplete
-            if not second_most_supported_blocks_at_each_level[h]:
-                return []
-
-        # Step 6: Select one block from the second most supported branch at consensus_height randomly
-        second_most_supported_blocks = second_most_supported_blocks_at_each_level.get(consensus_height, [])
-        return [random.choice(second_most_supported_blocks)] if second_most_supported_blocks else []
+    def missing_votes_count(self, height, G):
+        total_votes = self.num_nodes * (height)
+        received_votes = sum(1 for vote in G if vote.height <= height)
+        return total_votes - received_votes
 
     def largest_height_with_compliant_votes(self, received_votes, N, f):
         """
@@ -967,45 +783,6 @@ class Node:
             k-=1
         return False
 
-    def get_top_two_supported_branches(self, starting_height,consensus_height, G):
-        """
-        Find the most supported and second most supported branches starting from a given starting height.
-        The most supported branch has the highest vote count at the starting height, and at each subsequent height,
-        the ancestors in the chain also need to have the highest vote count among their siblings. The second-most branch
-        has the second-highest vote count.
-        """
-        # Step 1: Filter compliant votes at the given starting height
-        compliant_votes = [vote for vote in G if vote.block.height == consensus_height and vote.is_compliant_vote()]
-        if len(compliant_votes) < self.N_f_votes_required:
-            return None, None, None,None
-
-        # Step 2: Create the virtual vote using compliant votes
-        virtual_vote = self.create_virtual_vote(compliant_votes)
-
-        # Step 3: Sort blocks in VC by vote count for the given starting height
-        block_support_at_starting_height = []
-        for block_hash, vote_count in virtual_vote.VC.items():
-            block = self.get_block_by_hash(block_hash)
-            if block and block.height == starting_height:
-                block_support_at_starting_height.append((block_hash, vote_count))
-        
-        # Sort the blocks by vote count at the starting height in descending order
-        block_support_at_starting_height.sort(key=lambda x: x[1], reverse=True)
-        if len(block_support_at_starting_height) == 1:
-            return block_support_at_starting_height[0][0], None, block_support_at_starting_height[0][1], 0
-
-        if len(block_support_at_starting_height) == 0:
-            return None, 0, 0, 0
-        return block_support_at_starting_height[0][0], block_support_at_starting_height[1][0],block_support_at_starting_height[0][1], block_support_at_starting_height[1][1]
-
-    def get_block_by_hash(self, block_hash):
-        return self.block_hash_map.get(block_hash, None)
-
-    def missing_votes_count(self, height, G):
-        total_votes = self.num_nodes * (height+1)
-        received_votes = sum(1 for vote in G if vote.height <= height)
-        return total_votes - received_votes
-
     def stop(self):
         self.stop_event.set()
         if self.server_socket:
@@ -1028,24 +805,9 @@ def simulate_voting_process(num_nodes=7, num_rounds=10, block_interval=10):
 
     # Start nodes' servers (already started in __init__)
     stop_event = threading.Event()
-    print ("Setup completed")
+    print("Setup completed")
     for node in nodes:
         node.start_working()
-
-    def propose_blocks():
-        """Thread function to propose blocks at fixed time intervals."""
-        block_round = 0
-        while not stop_event.is_set():
-            #print(f"[{time.time()}]",f"\n--- Block Interval {block_round + 1} ---")
-
-            # Each node proposes blocks
-            for node in nodes:
-             #   node.propose_block()
-                if random.randint(1,100)==1:
-                    node.adversary_propose_block()
-
-           # block_round += 1
-            time.sleep(block_interval)
 
     def check_consensus():
         """Thread function to check for consensus."""
@@ -1053,37 +815,21 @@ def simulate_voting_process(num_nodes=7, num_rounds=10, block_interval=10):
         first_time = {}
         while not stop_event.is_set():
             for node in nodes:
-                if node.latest_vote_height<=k_prime:
+                if node.latest_vote_height < k_prime:
                     continue
                 consensus = node.is_consensus_reached(k_prime, node.latest_vote_height)
                 if consensus and consensus not in first_time:
-                    #print(f"[{time.time()}]",f"Consensus for height {k_prime} has been reached: {consensus} at vote height {node.latest_vote_height}")
+                    print(f"[{time.time()}]", f"Consensus for height {k_prime} has been reached on block {consensus} at vote height {node.latest_vote_height} by Node {node.node_id}")
                     k_prime += 1
                     first_time[consensus] = True
                     break
-            if k_prime >num_rounds:
-                os._exit()
+            if k_prime > num_rounds:
+                os._exit(0)
             time.sleep(5)
 
     # Start threads
-  #  block_thread = threading.Thread(target=propose_blocks)
-    #vote_thread = threading.Thread(target=cast_votes)
     consensus_thread = threading.Thread(target=check_consensus)
-    #block_thread.start()
-    #vote_thread.start()
     consensus_thread.start()
 
- #   try:
- #       time.sleep(num_rounds * block_interval)
- #   finally:
- #       # Stop the threads
- #       stop_event.set()
-  #      for node in nodes:
-  #          node.stop()
-  #      block_thread.join()
-  #      vote_thread.join()
-  #      consensus_thread.join()
-
-# Run the simulation
 if __name__ == "__main__":
     simulate_voting_process()
