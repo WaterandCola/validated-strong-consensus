@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consensus Visualizer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js"></script>
-    <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consensus Visualizer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js"></script>
+<style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f4f9;
@@ -78,10 +77,9 @@
         }
     </style>
 </head>
-
 <body>
-    <h1>Consensus Visualization</h1>
-    <textarea id="logsInput">Setup completed
+<h1>Consensus Visualization</h1>
+<textarea id="logsInput">Setup completed
         [1726708216.8132124] Node 0 cast a vote for the Genesis block at vote height 0.
         [1726708216.8465104] Node 1 cast a vote for the Genesis block at vote height 0.
         [1726708216.8782961] Node 1 proposed block block_1_1_8802 at consensus height 1 extending from genesis
@@ -232,16 +230,15 @@
         [1726708810.1391022] Node 5 proposed block block_5_13_6493 at consensus height 13 extending from block_1_12_2297
         [1726708820.0004725] Node 6 proposed block block_6_19_863 at consensus height 19 extending from block_1_18_1274
         </textarea>
-    <input type="file" id="fileInput" accept=".txt" />
-    <button onclick="startReplay()">Start Replay</button>
-    <div>
-    <progress id="replayProgress" value="0" max="100" style="width: 100%;"></progress>
+<input type="file" id="fileInput" accept=".txt" />
+<button onclick="startReplay()">Start Replay</button>
+<div>
+<progress id="replayProgress" value="0" max="100" style="width: 100%;"></progress>
 </div>
-    <h2>Graph (Green block is consensually accepted block.)</h2> Stop until 10 blocks are consensually accepted. Hover the votes to see vote graph and vote counter.
-    <div id="graph"></div>
-    <div class="tooltip" id="tooltip" style="opacity: 0;"></div>
-
-    <script>
+<h2>Graph (Green block is consensually accepted block.)</h2> Stop until 10 blocks are consensually accepted. Hover the votes to see vote graph and vote counter.
+<div id="graph"></div>
+<div class="tooltip" id="tooltip" style="opacity: 0;"></div>
+<script>
         let links = [];
         let blockLinks = [];
         let voteLinks = [];
@@ -534,107 +531,104 @@ if (logIndex >= logs.length) {
             function hideTooltip() {
                 tooltip.transition().duration(200).style('opacity', 0);
             }
-    
-            function resetHighlighting() {
-                svg.selectAll('rect').attr('fill', d => consensusBlocks.has(d.id) ? 'green' : '#1f77b4');
-                svg.selectAll('circle').attr('fill', '#ff7f0e');
-                svg.selectAll('line').attr('stroke', 'gray').attr('stroke-width', 1); // Reset lines
-                svg.selectAll('text.vcText').remove();
 
-            }
+            let activeTimeouts = [];
+
+    
+// Modify mouseout to clear all active timeouts and reset highlighting
+function resetHighlighting() {
+    activeTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    activeTimeouts = []; // Clear the array of active timeouts
+    
+    svg.selectAll('rect').attr('fill', d => consensusBlocks.has(d.id) ? 'green' : '#1f77b4');
+    svg.selectAll('circle').attr('fill', '#ff7f0e');
+    svg.selectAll('line').attr('stroke', 'gray').attr('stroke-width', 1);
+    svg.selectAll('text.vcText').remove();
+}
             let highlightedIndex = null;
     
-          // Recursive highlighting function for blocks
 
-// Recursive highlighting function for blocks (with asynchronous processing)
 function highlightBlock(blockId) {
     const block = nodes.find(n => n.id === blockId);
     if (block) {
         svg.select(`#${blockId} rect`).attr('fill', 'purple');
 
-        // Directly access and update the line connecting this block to its parent
         const parentLink = blockLinks.find(l => l.target === blockId);
         if (parentLink && parentLink.source && parentLink.element) {
-            parentLink.element.attr('stroke', 'purple').attr('stroke-width', 3);  // Change line color and thickness
+            parentLink.element.attr('stroke', 'purple').attr('stroke-width', 3);
 
-            // Asynchronous recursion using setTimeout to avoid blocking
-            setTimeout(() => {
-                highlightBlock(parentLink.source);  // Recursively highlight the previous block
-            }, 0);  // Process next block in the next event loop
+            // Use setTimeout for asynchronous recursion
+            const timeoutId = setTimeout(() => {
+                highlightBlock(parentLink.source);
+            }, 0);
+            
+            // Track active timeout
+            activeTimeouts.push(timeoutId);
         }
     }
 }
 
-// Recursive highlighting function for votes (with asynchronous processing)
 function highlightVote(voteId, first_) {
     const vote = nodes.find(n => n.id === voteId);
     if (vote) {
         svg.select(`#${voteId} circle`).attr('fill', 'red');
 
-        // Highlight vote-to-block link
         if (!first_) {
-            const voteToBlockLink = links.find(l => l.source === voteId);  // Find the vote-to-block link
+            const voteToBlockLink = links.find(l => l.source === voteId);
             if (voteToBlockLink && voteToBlockLink.element) {
-                voteToBlockLink.element.attr('stroke', 'purple').attr('stroke-width', 2);  // Highlight the vote-to-block link
+                voteToBlockLink.element.attr('stroke', 'purple').attr('stroke-width', 2);
             }
         }
 
-        // Directly access and update the lines connected to this vote
         const voteLinksToUpdate = voteLinks.filter(l => l.target === voteId);
         voteLinksToUpdate.forEach(link => {
             if (link.element) {
-                link.element.attr('stroke', 'red').attr('stroke-width', 3);  // Change line color and thickness
+                link.element.attr('stroke', 'red').attr('stroke-width', 3);
             }
         });
 
         if (first_) {
-            const voteToBlockLink = links.find(l => l.source === voteId);  // Find the vote-to-block link
+            const voteToBlockLink = links.find(l => l.source === voteId);
             const vc_ignore = voteToBlockLink.target;
-
-            // Display VC values inside the corresponding block rectangles
             Object.entries(vote.vc).forEach(([blockId, count]) => {
-                const blockGroup = svg.select(`#${blockId}`);  // Select the g group corresponding to the block
-                if (blockId != vc_ignore) {
-                    if (!blockGroup.empty()) {
-                        blockGroup.select('text.vcText').remove();  // Remove any previous VC text
-
-                        // Append VC text inside the block group
-                        d3.select(blockGroup.node())  // Use d3.select with .node() to get the actual DOM element
-                            .append('text')
-                            .attr('class', 'vcText')
-                            .attr('x', 70)  // Adjusted: Position text in the center of the rectangle
-                            .attr('y', 30)  // Adjusted: Position slightly lower to ensure visibility
-                            .attr('fill', 'red')
-                            .attr('text-anchor', 'middle')
-                            .style('font-size', '18px')  // Increased font size to ensure visibility
-                            .text(count)  // Show VC count
-                            .raise();  // Bring the text to the front of the block
-                    }
+                const blockGroup = svg.select(`#${blockId}`);
+                if (blockId != vc_ignore && !blockGroup.empty()) {
+                    blockGroup.select('text.vcText').remove();
+                    d3.select(blockGroup.node())
+                        .append('text')
+                        .attr('class', 'vcText')
+                        .attr('x', 70)
+                        .attr('y', 30)
+                        .attr('fill', 'red')
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', '18px')
+                        .text(count)
+                        .raise();
                 }
             });
         }
 
-        // Asynchronous recursion for linked votes
         const linkedVoteIds = vote.linkedVotes.map(v => `vote_${v}_${vote.height - 1}`);
         linkedVoteIds.forEach(linkedVoteId => {
             const linkedVote = nodes.find(n => n.id === linkedVoteId);
             if (linkedVote) {
-                setTimeout(() => {
-                    highlightVote(linkedVoteId, false);  // Recursively highlight linked votes
-                }, 0);  // Schedule the next vote highlighting in the next event loop
+                const timeoutId = setTimeout(() => {
+                    highlightVote(linkedVoteId, false);
+                }, 0);
+                activeTimeouts.push(timeoutId);
             }
         });
 
         if (!first_) {
-            setTimeout(() => {
-                highlightBlock(vote.blockId);  // Highlight the block this vote links to
-            }, 0);  // Schedule block highlighting after vote highlighting
+            const timeoutId = setTimeout(() => {
+                highlightBlock(vote.blockId);
+            }, 0);
+            activeTimeouts.push(timeoutId);
         }
     }
 }
 
-        }
-    
+}
         function getXYFromTransform(transform) {
             const translateValues = transform.match(/translate\(([^,]+),([^)]+)\)/);
             return {
@@ -724,7 +718,5 @@ function highlightVote(voteId, first_) {
 }
 
     </script>
-    
-    
 </body>
 </html>
