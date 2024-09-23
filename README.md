@@ -7,7 +7,8 @@ The nodes will vote as fast as they can (when collected N-f votes from the last 
 
 
  **Contents**
-- `vote.py`: The simulation script for the consensus protocol.
+- `vote.py`: The simulation script for the consensus protocol (using threads to simulate nodes).
+- `vote_multiprocesses.py`: The simulation script for the consensus protocol (using processes to simulate nodes).
 - `index.html`: The web-based visualization of the consensus process.
 - `image.png`: A screenshot of the visualized output for an example consensus scenario.
 - `Code Listing 1.ipynb`: Code Listing 1 and how Figure 4 of the paper was generated.
@@ -21,8 +22,14 @@ To simulate the voting process of our protocol, you can run the `vote.py` script
 **Steps:**
 1. Run the Python simulation.
    ```bash
-   python3 vote.py >output.txt
+   python3 vote.py > output.txt
    ```
+   or
+   ```bash
+   python3 vote_multiprocesses.py > output.txt
+   ```
+As the number of threads allowed in a process is limited, simulating nodes using threads (as node uses multiple threads) can be considered as simulating nodes in a slow network, where some nodes experience delays. In contrast, simulating nodes using processes can provide more parallelism, which can be seen as simulating nodes in a network with good conditions. However, in either case, there is no time-bound for reaching consensus.
+    
 3. The simulation will output logs describing the blocks proposed and the votes cast at each round.
 
  **Visualize the Consensus Process**
