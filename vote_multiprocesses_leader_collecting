@@ -859,7 +859,7 @@ class Node:
                 continue
             consensus = self.is_consensus_reached(k_prime, self.latest_vote_height)
             if consensus and consensus not in first_time:
-                print(f"[{time.time()}] Node {self.node_id} reached consensus for height {k_prime} on block {consensus} at vote height {self.latest_vote_height}\n")
+               # print(f"[{time.time()}] Node {self.node_id} reached consensus for height {k_prime} on block {consensus} at vote height {self.latest_vote_height}\n")
                 k_prime += 1
                 first_time[consensus] = True
             time.sleep(5)
