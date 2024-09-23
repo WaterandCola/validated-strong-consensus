@@ -30,7 +30,7 @@ To simulate the voting process of our protocol, you can run the `vote.py` script
    ```
 As the number of threads allowed in a process is limited, simulating nodes using threads (as node uses multiple threads) can be considered as simulating nodes in a slow network, where some nodes experience delays. In contrast, simulating nodes using processes can provide more parallelism, which can be seen as simulating nodes in a network with good conditions. However, in either case, there is no time-bound for reaching consensus.
     
-3. The simulation will output logs describing the blocks proposed and the votes cast at each round.
+2. The simulation will output logs describing the blocks proposed and the votes cast at each round.
 
  **Visualize the Consensus Process**
 After running the simulation, you can visualize the consensus process using the web-based tool included in this repository.
