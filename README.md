@@ -9,6 +9,7 @@ The nodes will vote as fast as they can (when collected N-f votes from the last 
  **Contents**
 - `vote.py`: The simulation script for the consensus protocol (using threads to simulate nodes).
 - `vote_multiprocesses.py`: The simulation script for the consensus protocol (using processes to simulate nodes).
+- `vote_multiprocesses_leader_collecting.py`: This simulation script for the consensus protocol (which uses processes to simulate nodes) optimizes communication by not having the nodes send their votes by default. Instead, the leader node requests votes from the nodes and sends them together with its block. This reduces both the message count and message complexity to $O(N)$, as described in Sec. 4.1.
 - `index.html`: The web-based visualization of the consensus process.
 - `image.png`: A screenshot of the visualized output for an example consensus scenario.
 - `Code Listing 1.ipynb`: Code Listing 1 and how Figure 4 of the paper was generated.
@@ -28,9 +29,13 @@ To simulate the voting process of our protocol, you can run the `vote.py` script
    ```bash
    python3 vote_multiprocesses.py > output.txt
    ```
+   or
+   ```bash
+   python3 vote_multiprocesses_leader_collecting.py > output.txt
+   ```  
 As the number of threads allowed in a process is limited, simulating nodes using threads (as node uses multiple threads) can be considered as simulating nodes in a slow network, where some nodes experience delays. In contrast, simulating nodes using processes can provide more parallelism, which can be seen as simulating nodes in a network with good conditions. However, in either case, there is no time-bound for reaching consensus.
     
-2. The simulation will output logs describing the blocks proposed and the votes cast at each round.
+3. The simulation will output logs describing the blocks proposed and the votes cast at each round.
 
  **Visualize the Consensus Process**
 After running the simulation, you can visualize the consensus process using the web-based tool included in this repository.
