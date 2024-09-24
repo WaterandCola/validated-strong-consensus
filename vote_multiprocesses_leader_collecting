@@ -566,18 +566,11 @@ class Node:
                 compliant_votes = [vote for vote in self.received_votes if vote.height == X_minus_1 and vote.is_compliant_vote()]
 
             if len(compliant_votes) >= self.N_f_votes_required:
+                if latest_block_candidate.height + 1 in self.blockchain:
+                    for other_block in self.blockchain[latest_block_candidate.height + 1]:
+                        if other_block.previous_block_hash == latest_block_candidate.block_hash:
+                            return None  # Someone already proposed a block of the same height at this branch.
                 selected_votes = compliant_votes[:self.N_f_votes_required]
-                # Collect any missing votes in the corresponding vote graph
-                all_votes_to_send = set()
-
-                def collect_votes(vote):
-                    if vote not in all_votes_to_send:
-                        all_votes_to_send.add(vote)
-                        for prev_vote in vote.previous_votes:
-                            collect_votes(prev_vote)
-
-                for vote in selected_votes:
-                    collect_votes(vote)
                 # Now create the block
                 new_block = self.create_block(latest_block_candidate)
                 self.blockchain.setdefault(new_block.height, []).append(new_block)
@@ -585,7 +578,7 @@ class Node:
                 print(f"[{time.time()}] Node {self.node_id} proposed block {new_block.block_hash} at consensus height {new_block.height} extending from {latest_block_candidate.block_hash}\n")
                 # Serialize the block and votes
                 block_json = serialize_block(new_block)
-                votes_json = [serialize_vote(vote) for vote in all_votes_to_send]
+                votes_json = [serialize_vote(vote) for vote in selected_votes]
                 # Prepare the message content to include both block and votes
                 content = {'block': block_json, 'votes': votes_json}
                 # Send the block along with votes to peers
