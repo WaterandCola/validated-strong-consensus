@@ -7,6 +7,8 @@ import queue
 import uuid
 import os
 import multiprocessing
+import asyncio
+
 
 # Serialization and Deserialization Functions
 
@@ -348,6 +350,37 @@ class Node:
             else:
                 time.sleep(0.001)
 
+
+    async def send_message_async(self, node_id, message_type, content):
+        """Send a message to another node asynchronously."""
+        if node_id not in self.peers:
+            return
+    
+        host, port = self.peers[node_id]
+        message = {
+            'type': message_type,
+            'content': content,
+            'sender_id': self.node_id
+        }
+        serialized_message = json.dumps(message).encode()
+    
+        try:
+            reader, writer = await asyncio.open_connection(host, port)
+            writer.write(serialized_message)
+            await writer.drain()
+            writer.close()
+            await writer.wait_closed()
+        except Exception as e:
+            pass  # Handle the exception
+    
+    # Send messages to all peers asynchronously
+    async def send_to_all_peers(self,message_type, content):
+        tasks = []
+        for peer_id in self.peers:
+            tasks.append(self.send_message_async(peer_id, message_type, content))
+        
+        await asyncio.gather(*tasks)
+
     def send_message(self, node_id, message_type, content):
         """Send a message to another node."""
         if node_id not in self.peers:
@@ -561,7 +594,7 @@ class Node:
                 print(f"[{time.time()}] Node {self.node_id} requesting missing votes at height {X_minus_1}\n")
                 self.request_votes_at_height(X_minus_1)
                 # Wait for responses
-                time.sleep(1)  # Wait for 1 second (adjust as needed)
+                time.sleep(self.delta_bi)  # Wait for delta_bi second (adjust as needed)
                 # Re-evaluate compliant votes
                 compliant_votes = [vote for vote in self.received_votes if vote.height == X_minus_1 and vote.is_compliant_vote()]
 
@@ -582,8 +615,7 @@ class Node:
                 # Prepare the message content to include both block and votes
                 content = {'block': block_json, 'votes': votes_json}
                 # Send the block along with votes to peers
-                for peer_id in self.peers:
-                    self.send_message(peer_id, 'block_with_votes', content)
+                asyncio.run(self.send_to_all_peers('block_with_votes', content))
                 return new_block  # Return block to broadcast to other nodes
             else:
                 print(f"[{time.time()}] Node {self.node_id} cannot propose a block at height {latest_block_candidate.height + 1} because it does not have enough compliant votes at height {X_minus_1} after requesting.\n")
@@ -592,8 +624,7 @@ class Node:
 
     def request_votes_at_height(self, height):
         """Request compliant votes at a specific height from peers."""
-        for peer_id in self.peers:
-            self.send_message(peer_id, 'request_votes_at_height', {'height': height})
+        asyncio.run(self.send_to_all_peers('request_votes_at_height', {'height': height}))
 
     def voting(self):
         while not self.stop_event.is_set():
@@ -880,12 +911,12 @@ def run_node(node_id, num_nodes, f, genesis_block_json, delta_bi, base_port, pee
 
 # Simulation Code
 
-def simulate_voting_process(num_nodes=7, num_rounds=10, block_interval=10):
+def simulate_voting_process(num_nodes=10, num_rounds=10, block_interval=10):
     genesis_block = Block(block_hash="genesis", height=0, previous_block_hash=None, proposer_id=None)
-    f = 2
+    f = 3
 
     # Prepare nodes info
-    base_port = 6000
+    base_port = 4000
     nodes_info = [{'node_id': i, 'host': 'localhost', 'port': base_port + i} for i in range(num_nodes)]
 
     # Serialize the genesis block
