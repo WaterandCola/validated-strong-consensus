@@ -591,7 +591,7 @@ class Node:
             # If not enough votes, request missing votes
             while len(compliant_votes) < self.N_f_votes_required:
                 # Request votes at height X-1
-                print(f"[{time.time()}] Node {self.node_id} requesting missing votes at height {X_minus_1}\n")
+                #print(f"[{time.time()}] Node {self.node_id} requesting missing votes at height {X_minus_1}\n")
                 self.request_votes_at_height(X_minus_1)
                 # Wait for responses
                 time.sleep(self.delta_bi)  # Wait for delta_bi second (adjust as needed)
@@ -916,7 +916,7 @@ def simulate_voting_process(num_nodes=10, num_rounds=10, block_interval=10):
     f = 3
 
     # Prepare nodes info
-    base_port = 4000
+    base_port = 6000
     nodes_info = [{'node_id': i, 'host': 'localhost', 'port': base_port + i} for i in range(num_nodes)]
 
     # Serialize the genesis block
