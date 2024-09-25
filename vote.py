@@ -242,6 +242,7 @@ class Vote:
 
             # Get all blocks at this height (siblings in the branch)
             sibling_blocks = self.get_blocks_at_height_by_votes(previous_block.height)
+            sibling_blocks = [sibling_block for sibling_block in sibling_blocks if sibling_block.previous_block_hash==previous_block.previous_block_hash]
 
             if not sibling_blocks:
                 return True  # No competition
