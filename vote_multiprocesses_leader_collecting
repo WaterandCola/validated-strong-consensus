@@ -334,11 +334,13 @@ class Node:
             data = b''
             try:
                 while not self.stop_event.is_set():
-                    data = conn.recv(4096)
-                    if not data:
+                    temp_ = conn.recv(4096)
+                    if not temp_:
                         break
-                    message = json.loads(data.decode())
-                    self.message_queue.put(message)
+                    data += temp_
+                message = json.loads(data.decode())
+                data = b''
+                self.message_queue.put(message)
             except Exception as e:
                 pass
 
