@@ -421,7 +421,8 @@ class Node:
             vote.block = self.block_hash_map[vote.block_hash]
         else:
             # Request the block from peers
-            self.request_block(vote.block_hash)
+            #self.request_block(vote.block_hash)
+            self.send_message(vote.voter, 'request_block', {'block_hash': vote.block_hash})
             missing_data = True
 
         # Reconstruct previous votes
@@ -431,7 +432,8 @@ class Node:
                 vote.previous_votes.append(prev_vote)
             else:
                 # Request the previous vote from peers
-                self.request_vote(prev_vote_hash)
+                #self.request_vote(prev_vote_hash)
+                self.send_message(vote.voter, 'request_vote', {'vote_hash': prev_vote_hash})
                 missing_data = True
 
         if missing_data:
@@ -456,11 +458,13 @@ class Node:
             # Check if all required data is available
             if vote.block_hash not in self.block_hash_map:
                 can_process = False
-                self.request_block(vote.block_hash)
+                #self.request_block(vote.block_hash)
+                self.send_message(vote.voter, 'request_block', {'block_hash': vote.block_hash})
             for prev_vote_hash in vote.previous_vote_hashes:
                 if prev_vote_hash not in self.vote_hash_map:
                     can_process = False
-                    self.request_vote(prev_vote_hash)
+                    #self.request_vote(prev_vote_hash)
+                    self.send_message(vote.voter, 'request_vote', {'vote_hash': prev_vote_hash})
             if can_process:
                 self.pending_votes.remove(vote)
                 self.receive_vote(vote)  # Now we can process the vote
