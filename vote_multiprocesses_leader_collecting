@@ -920,9 +920,9 @@ def run_node(node_id, num_nodes, f, genesis_block_json, delta_bi, base_port, pee
 
 # Simulation Code
 
-def simulate_voting_process(num_nodes=10, num_rounds=10, block_interval=10):
+def simulate_voting_process(num_nodes=7, num_rounds=10, block_interval=10):
     genesis_block = Block(block_hash="genesis", height=0, previous_block_hash=None, proposer_id=None)
-    f = 3
+    f = 2
 
     # Prepare nodes info
     base_port = 6000
