@@ -774,6 +774,7 @@ class Node:
             if len(compliant_votes) < self.N_f_votes_required:
                 k -= 1
                 continue
+            ccount_=0
             for item in compliant_votes:
                 most_supported_block, second_most_supported_block, v1, v2 = self.get_top_two_supported_branches(k_prime, k - 1, item.G)
                 if not most_supported_block:
@@ -783,9 +784,11 @@ class Node:
                 missing_votes_at_k_1 = self.missing_votes_count(k - 1, item.G)
                 potential_double_votes = (k - k_prime) * self.f
                 if v1 - potential_double_votes > v2 + missing_votes_at_k_1 - missing_votes_at_k_prime - 1:
-                    print(f"[{time.time()}] Node {self.node_id} thinks Consensus reached on block {most_supported_block} at height {k} because {most_supported_block} got {v1} supports, {second_most_supported_block} got {v2} supports, the missing votes are {missing_votes_at_k_1 - missing_votes_at_k_prime}.\n")
-                    self.most_recent_accepted = most_supported_block
-                    return most_supported_block
+                    ccount_+=1
+                    #print(f"[{time.time()}] Node {self.node_id} thinks Consensus reached on block {most_supported_block} at height {k} because {most_supported_block} got {v1} supports, {second_most_supported_block} got {v2} supports, the missing votes are {missing_votes_at_k_1 - missing_votes_at_k_prime}.\n")
+            if ccount_>=self.N_f_votes_required:
+                self.most_recent_accepted = most_supported_block
+                return most_supported_block
             k -= 1
         return False
 
@@ -798,10 +801,10 @@ class Node:
                 continue
             consensus = self.is_consensus_reached(k_prime, self.latest_vote_height)
             if consensus and consensus not in first_time:
-                #print(f"[{time.time()}] Node {self.node_id} reached consensus for height {k_prime} on block {consensus} at vote height {self.latest_vote_height}\n")
+                print(f"[{time.time()}] Node {self.node_id} thinks Consensus reached on block {consensus} at height {self.latest_vote_height} because {consensus} got enough supports.\n")
                 k_prime += 1
                 first_time[consensus] = True
-            time.sleep(5)
+            time.sleep(0.01)
 
     def stop(self):
         self.stop_event.set()
