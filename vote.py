@@ -768,24 +768,27 @@ class Node:
         """
         Determine if consensus is reached on a block at height k_prime based on votes at height k.
         """
-        while k>k_prime+1:
+        while k > k_prime + 1:
             compliant_votes = [vote for vote in self.received_votes if vote.block.height == k and vote.is_compliant_vote()]
             if len(compliant_votes) < self.N_f_votes_required:
+                k -= 1
                 continue
+            ccount_=0
             for item in compliant_votes:
-                most_supported_block, second_most_supported_block,v1,v2 = self.get_top_two_supported_branches(k_prime, k-1, item.G)
+                most_supported_block, second_most_supported_block, v1, v2 = self.get_top_two_supported_branches(k_prime, k - 1, item.G)
                 if not most_supported_block:
                     continue
-                
-                missing_votes_at_k_prime = self.missing_votes_count(k_prime,item.G)
-                missing_votes_at_k_1 = self.missing_votes_count(k-1,item.G)
-                potential_double_votes = (k  - k_prime) * self.f
-               # print (v1, v1 - potential_double_votes,  v2 + missing_votes_at_k_1 - missing_votes_at_k_prime - 1)
+
+                missing_votes_at_k_prime = self.missing_votes_count(k_prime, item.G)
+                missing_votes_at_k_1 = self.missing_votes_count(k - 1, item.G)
+                potential_double_votes = (k - k_prime) * self.f
                 if v1 - potential_double_votes > v2 + missing_votes_at_k_1 - missing_votes_at_k_prime - 1:
-                    print(f"[{time.time()}]",f"Node {self.node_id} thinks Consensus reached on block {most_supported_block} at height {k} because {most_supported_block} got {v1} supports, {second_most_supported_block} got {v2} supports, the missing votes are {missing_votes_at_k_1 - missing_votes_at_k_prime}.")
-                    self.most_recent_accepted = most_supported_block
-                    return most_supported_block
-            k-=1
+                    ccount_+=1
+                    #print(f"[{time.time()}] Node {self.node_id} thinks Consensus reached on block {most_supported_block} at height {k} because {most_supported_block} got {v1} supports, {second_most_supported_block} got {v2} supports, the missing votes are {missing_votes_at_k_1 - missing_votes_at_k_prime}.\n")
+            if ccount_>=self.N_f_votes_required:
+                self.most_recent_accepted = most_supported_block
+                return most_supported_block
+            k -= 1
         return False
 
     def stop(self):
