@@ -378,32 +378,32 @@ if (logIndex >= logs.length) {
             // Parse the consensus log format
             const consensusBlockInfo = log.match(/block (\S+) at height (\d+)/);
             const node = log.match(/Node (\d+)/)[1];
-            const supportsMatch = log.match(/got (\d+) supports/);
-            const secondSupportsMatch = log.match(/block (\S+) got (\d+) supports/);
+            //const supportsMatch = log.match(/got (\d+) supports/);
+            //const secondSupportsMatch = log.match(/block (\S+) got (\d+) supports/);
             const blockId = consensusBlockInfo[1];
             const height = consensusBlockInfo[2];
-            const supports = supportsMatch ? supportsMatch[1] : null;
+            //const supports = supportsMatch ? supportsMatch[1] : null;
 
             // Handle the second most supported block
-            let secondBlockId = "None";
-            let secondSupports = 0;
+           // let secondBlockId = "None";
+            //let secondSupports = 0;
 
-            if (secondSupportsMatch) {
-                secondBlockId = secondSupportsMatch[1];
-                secondSupports = secondSupportsMatch[2];
-            }
+            //if (secondSupportsMatch) {
+            //    secondBlockId = secondSupportsMatch[1];
+            //    secondSupports = secondSupportsMatch[2];
+            //}
 
             if (consensusBlockInfo) {
                 consensusBlocks.add(blockId);
-                const consensusLog = {
-                    blockId,
-                    node,
-                    height,
-                    supports,
-                    secondBlockId,
-                    secondSupports,
-                    logText: log
-                };
+             //   const consensusLog = {
+             //       blockId,
+             //       node,
+             //       height,
+             //       supports,
+             //       secondBlockId,
+             //       secondSupports,
+             //       logText: log
+             //   };
  //               consensusLogs.push(consensusLog);
   //              const consensusList = document.getElementById('consensusList');
    // consensusList.innerHTML = '';
