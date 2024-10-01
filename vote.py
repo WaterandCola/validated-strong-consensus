@@ -827,7 +827,7 @@ def simulate_voting_process(num_nodes=7, num_rounds=10, block_interval=10):
                     continue
                 consensus = node.is_consensus_reached(k_prime, node.latest_vote_height)
                 if consensus and consensus not in first_time:
-                    print(f"[{time.time()}]", f"Consensus for height {k_prime} has been reached on block {consensus} at vote height {node.latest_vote_height} by Node {node.node_id}")
+                    print(f"[{time.time()}]", f"Consensus reached on block {consensus} at height {node.latest_vote_height} by Node {node.node_id}")
                     k_prime += 1
                     first_time[consensus] = True
                     break
