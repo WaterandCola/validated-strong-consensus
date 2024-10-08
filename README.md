@@ -1,6 +1,6 @@
 **Validated Strong Consensus Protocol Small Toy Experiment and Visualization**
 
-This repository contains a simplified Python experiment and web-based visualization tool for the Validated Strong Consensus protocol. The logic for voting and consensus-reaching is exactly the same as the code we used for the experiments; however, other features have been simplified for illustration purposes. In particular, the designs and optimizations in Sec. 3.6.1 and Sec. 3.7 are not implemented in this toy experiment. Additionally, we do not use a leader-collecting system to optimize complexity.
+This repository contains a simplified Python experiment and web-based visualization tool for the Validated Strong Consensus protocol. The logic for voting and consensus-reaching is exactly the same as the code we used for the experiments; however, other features have been simplified for illustration purposes. In particular, the designs and optimizations in Sec. 3.6.1 and Sec. 3.7 are not implemented in this toy experiment.
 
 The block interval is set to 10 seconds, meaning the honest nodes will check if they should propose a block (as a leader node) in every 10 seconds. 
 The nodes will vote as fast as they can (when collected N-f votes from the last vote height).
